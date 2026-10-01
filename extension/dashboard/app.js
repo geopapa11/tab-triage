@@ -387,7 +387,8 @@ function popover(anchor, html, onClick) {
   pop.hidden = false;
   const r = anchor.getBoundingClientRect();
   const w = pop.offsetWidth;
-  pop.style.top = `${Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 10)}px`;
+  // Never let a tall menu (e.g. 30 "Merge into" rows) push its first items off the top.
+  pop.style.top = `${Math.max(10, Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 10))}px`;
   pop.style.left = `${Math.max(10, Math.min(r.right - w, innerWidth - w - 10))}px`;
   pop.onclick = (e) => {
     const b = e.target.closest("[data-choice]");
