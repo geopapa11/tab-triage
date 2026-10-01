@@ -118,10 +118,15 @@ export function textAllowed(url, neverRead = []) {
   return HTTP.test(url) && !matchesAny(url, neverRead) && !isLoginUrl(url);
 }
 
+// Chrome restores sessions lazily: those tabs report status "unloaded" without being discarded.
+export function isLoaded(tab) {
+  return !tab.discarded && tab.status !== "unloaded";
+}
+
 export function unloadOrder(tabs, { keepOpen = [], busyIds = new Set() } = {}) {
   const tier = (t) => (t.pinned || isKeepOpen(t, keepOpen) ? 1 : 0);
   return tabs
-    .filter((t) => !t.active && !t.audible && !t.discarded && !busyIds.has(t.id) && HTTP.test(t.url))
+    .filter((t) => !t.active && !t.audible && isLoaded(t) && !busyIds.has(t.id) && HTTP.test(t.url))
     .sort((a, b) => tier(a) - tier(b) || (a.lastAccessed ?? 0) - (b.lastAccessed ?? 0))
     .map((t) => t.id);
 }

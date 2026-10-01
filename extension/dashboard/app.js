@@ -4,6 +4,7 @@ import { api } from "../lib/api.js";
 import { snoozePresets, ago, dayLabel } from "../lib/time.js";
 import { dropIndex, rankedOrder } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
+import { isLoaded } from "../lib/rules.js";
 
 const DAY_S = 86400;
 const LIVE_TAB_BUDGET = 12;
@@ -64,7 +65,7 @@ async function refresh({ animate = false } = {}) {
     ]);
     Object.assign(S, {
       state, board, completed: completed.tabs, pending: pending.urls.length, memory,
-      liveTabs: tabs.filter((t) => !t.discarded && !t.url.startsWith(SELF)).length,
+      liveTabs: tabs.filter((t) => isLoaded(t) && !t.url.startsWith(SELF)).length,
       lastSweep: local.lastSweep ?? null, offline: false,
     });
   } catch (e) {

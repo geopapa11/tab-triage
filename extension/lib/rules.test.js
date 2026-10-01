@@ -13,6 +13,7 @@ import {
   sweepDue,
   memoryCheckDue,
   closeSelection,
+  isLoaded,
 } from "./rules.js";
 
 const H = 3600_000;
@@ -269,4 +270,12 @@ test("a planned drop that navigated elsewhere is not closed", () => {
   const moved = tab("https://github.com/o/r/issues/new");
   const ids = closeSelection([moved], new Map(), new Map([[moved.id, "https://www.google.com/search?q=x"]]));
   assert.deepEqual(ids, []);
+});
+
+test("tabs restored but never loaded don't count as loaded or as unload targets", () => {
+  const live = tab("https://a.com");
+  const discarded = tab("https://b.com", { discarded: true });
+  const neverLoaded = tab("https://c.com", { status: "unloaded" });
+  assert.deepEqual([live, discarded, neverLoaded].map(isLoaded), [true, false, false]);
+  assert.deepEqual(unloadOrder([live, discarded, neverLoaded]), [live.id]);
 });

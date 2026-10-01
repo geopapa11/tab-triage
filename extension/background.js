@@ -2,7 +2,7 @@
 // gathers tab state, talks to the local server, and closes/unloads tabs.
 
 import {
-  planSweep, textAllowed, unloadOrder, memoryCheckDue, nextSweepAt, sweepDue, closeSelection,
+  planSweep, textAllowed, unloadOrder, memoryCheckDue, nextSweepAt, sweepDue, closeSelection, isLoaded,
 } from "./lib/rules.js";
 import { api } from "./lib/api.js";
 import { markSeen } from "./lib/seen.js";
@@ -78,7 +78,7 @@ chrome.tabs.onRemoved.addListener(updateBadge);
 
 async function updateBadge() {
   const tabs = await chrome.tabs.query({});
-  const live = tabs.filter((t) => !t.discarded && t.url !== DASHBOARD).length;
+  const live = tabs.filter((t) => isLoaded(t) && t.url !== DASHBOARD).length;
   const over = live > LIVE_TAB_BUDGET;
   await chrome.action.setBadgeText({ text: over ? String(live) : "" });
   await chrome.action.setBadgeBackgroundColor({ color: "#c2410c" });
