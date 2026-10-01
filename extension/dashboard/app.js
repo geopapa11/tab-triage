@@ -19,6 +19,7 @@ const S = {
   pending: 0,
   memory: null,
   liveTabs: 0,
+  windows: 0,
   lastSweep: null,
   offline: false,
   expandedDone: new Set(),
@@ -55,7 +56,7 @@ let pollTimer;
 async function refresh({ animate = false } = {}) {
   const before = animate ? snapshot() : null;
   try {
-    const [state, board, completed, pending, memory, tabs, local] = await Promise.all([
+    const [state, board, completed, pending, memory, tabs, local, wins] = await Promise.all([
       api("GET", "/api/state"),
       api("GET", "/api/board"),
       api("GET", "/api/completed"),
@@ -63,11 +64,13 @@ async function refresh({ animate = false } = {}) {
       api("GET", "/api/memory"),
       chrome.tabs.query({}),
       chrome.storage.local.get(["lastSweep", "lastError"]),
+      chrome.windows.getAll({ windowTypes: ["normal"] }),
     ]);
     Object.assign(S, {
       state, board, completed: completed.tabs, pending: pending.urls.length, memory,
       liveTabs: tabs.filter((t) => isLoaded(t) && !t.url.startsWith(SELF)).length,
       lastSweep: local.lastSweep ?? null, offline: false,
+      windows: wins.filter((w) => !w.incognito).length,
     });
   } catch (e) {
     console.error(e);
@@ -150,6 +153,11 @@ function renderInstruments() {
       <div class="label"><span>Live tabs</span><span>budget ${LIVE_TAB_BUDGET}</span></div>
       <div class="value">${S.liveTabs}</div>
       <div class="meter ${S.liveTabs > LIVE_TAB_BUDGET ? "over" : ""}"><i style="width:${tabPct}%"></i></div>
+    </div>
+    <div class="gauge" title="Normal Chrome windows. Tidy windows gathers tabs into a work window and an inbox window.">
+      <div class="label"><span>Windows</span><span>budget 2</span></div>
+      <div class="value">${S.windows}</div>
+      <div class="meter ${S.windows > 2 ? "over" : ""}"><i style="width:${Math.min(100, (S.windows / 2) * 100)}%"></i></div>
     </div>`;
 }
 
@@ -460,6 +468,13 @@ const actions = {
       toast(r.closed
         ? `Saved and closed ${r.saved} tabs, dropped ${r.dropped}.`
         : `Saved ${r.saved} tabs${r.dropped ? `, ${r.dropped} to drop` : ""}. Nothing closed yet.`);
+    });
+  },
+  tidy: async (el) => {
+    el.disabled = true;
+    await act(async () => {
+      const r = await message("tidyWindows");
+      toast(`Moved ${r.moved} tabs or groups — ${r.windows} window${r.windows === 1 ? "" : "s"} now${r.failed ? ` (${r.failed} couldn't move)` : ""}.`);
     });
   },
   approve: async () => {

@@ -6,6 +6,7 @@ import {
 } from "./lib/rules.js";
 import { api } from "./lib/api.js";
 import { markSeen } from "./lib/seen.js";
+import { planTidy } from "./lib/tidy.js";
 
 const SWEEP_HOUR = 19;
 const STALE_MS = 96 * 3600_000;
@@ -245,11 +246,44 @@ async function guardMemory() {
   return { ...mem, unloaded };
 }
 
+// --- tidy windows: gather everything into a work window + an inbox window --------
+
+async function tidyWindows() {
+  const [windows, state] = await Promise.all([
+    chrome.windows.getAll({ populate: true, windowTypes: ["normal"] }),
+    api("GET", "/api/state"),
+  ]);
+  const plan = planTidy(windows, { keepOpen: state.settings.keep_open, dashboardUrl: DASHBOARD });
+  const pinned = new Set(windows.flatMap((w) => w.tabs).filter((t) => t.pinned).map((t) => t.id));
+  let moved = 0;
+  let failed = 0;
+  for (const g of plan.groupMoves) {
+    try {
+      await chrome.tabGroups.move(g.groupId, { windowId: g.windowId, index: -1 });
+      moved++;
+    } catch {
+      failed++;
+    }
+  }
+  for (const m of plan.tabMoves) {
+    try {
+      // Pinned tabs must land in the pinned strip at the front.
+      await chrome.tabs.move(m.tabId, { windowId: m.windowId, index: pinned.has(m.tabId) ? 0 : -1 });
+      moved++;
+    } catch {
+      failed++;
+    }
+  }
+  if (plan.workId != null) await chrome.windows.update(plan.workId, { focused: true });
+  const left = (await chrome.windows.getAll({ windowTypes: ["normal"] })).filter((w) => !w.incognito).length;
+  return { moved, failed, windows: left };
+}
+
 // --- messages from the dashboard page ------------------------------------------
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
-  const handlers = { sweepNow: sweep, closePending, checkMemory: guardMemory };
+  const handlers = { sweepNow: sweep, closePending, checkMemory: guardMemory, tidyWindows };
   const fn = handlers[msg?.type];
   if (!fn) return false;
   fn().then((r) => sendResponse({ ok: true, result: r }), (e) => {

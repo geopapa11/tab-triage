@@ -64,7 +64,7 @@ export function effectiveLastAccessed(tab, seen = {}) {
   return values.length ? Math.min(...values) : 0;
 }
 
-function isKeepOpen(tab, keepOpen) {
+export function isKeepOpen(tab, keepOpen) {
   return matchesAny(tab.url, keepOpen) || gmailKind(tab.url) === "inbox";
 }
 
