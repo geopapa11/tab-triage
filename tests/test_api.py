@@ -1,0 +1,235 @@
+import json
+import threading
+import urllib.error
+import urllib.request
+
+import pytest
+
+from server.app import make_server, sweep_mode
+from server.memory import chrome_rss_bytes
+from server.store import DAY, Store
+
+from .test_store import Clock
+
+# --- pure helpers --------------------------------------------------------------
+
+PS_OUTPUT = """\
+  1048576 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+   524288 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)
+   999999 /Applications/Slack.app/Contents/MacOS/Slack
+      100 /usr/bin/ps
+"""
+
+
+def test_chrome_rss_sums_only_chrome_processes():
+    assert chrome_rss_bytes(PS_OUTPUT) == (1048576 + 524288) * 1024
+
+
+@pytest.mark.parametrize("days_since_first_run, mode, warn", [
+    (None, "first-run", False),
+    (0, "dry-run", False),
+    (5.9, "dry-run", False),
+    (6.1, "dry-run", True),
+    (7.0, "live", False),
+])
+def test_sweep_mode_follows_first_run_date(days_since_first_run, mode, warn):
+    now = 1_800_000_000.0
+    done = None if days_since_first_run is None else now - days_since_first_run * DAY
+    assert sweep_mode(done, now) == {"mode": mode, "auto_close_tomorrow": warn}
+
+
+# --- HTTP ----------------------------------------------------------------------
+
+@pytest.fixture
+def clock():
+    return Clock()
+
+
+@pytest.fixture
+def env(tmp_path, clock):
+    store = Store(tmp_path / "t.db", now=clock)
+    sorted_calls = []
+
+    def sort_fn(include_unsorted=False):
+        sorted_calls.append(include_unsorted)
+        for t in store.pending_sort():
+            store.assign(t["id"], "Sorted")
+
+    srv = make_server(store, sort_fn=sort_fn, memory_fn=lambda: 1_200_000_000, port=0,
+                      background=False)
+    threading.Thread(target=srv.serve_forever, daemon=True).start()
+    yield {"store": store, "port": srv.server_address[1], "sorted": sorted_calls, "clock": clock}
+    srv.shutdown()
+
+
+def call(env, method, path, body=None, headers=None):
+    port = env["port"]
+    h = {"Host": f"127.0.0.1:{port}", "X-Tab-Triage": "1", "Content-Type": "application/json"}
+    h.update(headers or {})
+    req = urllib.request.Request(
+        f"http://127.0.0.1:{port}{path}", method=method, headers=h,
+        data=None if body is None else json.dumps(body).encode(),
+    )
+    try:
+        with urllib.request.urlopen(req) as r:
+            return r.status, json.loads(r.read() or b"null")
+    except urllib.error.HTTPError as e:
+        return e.code, None
+
+
+def sweep(env, tabs, **kw):
+    return call(env, "POST", "/api/sweep", {"tabs": tabs, **kw})
+
+
+def tab(url, title=None, **kw):
+    return {"url": url, "title": title or url, **kw}
+
+
+def themes(env):
+    return {t["name"]: [x["title"] for x in t["tabs"]] for t in call(env, "GET", "/api/board")[1]["themes"]}
+
+
+def test_health(env):
+    assert call(env, "GET", "/health") == (200, {"ok": True})
+
+
+def test_rejects_foreign_host_header(env):
+    assert call(env, "GET", "/api/board", headers={"Host": "evil.example:80"})[0] == 403
+
+
+def test_rejects_web_page_origin(env):
+    assert call(env, "GET", "/api/board", headers={"Origin": "https://evil.example"})[0] == 403
+
+
+def test_allows_extension_origin(env):
+    assert call(env, "GET", "/api/board", headers={"Origin": "chrome-extension://abc"})[0] == 200
+
+
+def test_writes_require_custom_header(env):
+    assert call(env, "POST", "/api/resort", {}, headers={"X-Tab-Triage": ""})[0] == 403
+
+
+def test_first_sweep_stores_sorts_and_holds_tabs_for_approval(env):
+    status, body = sweep(env, [tab("https://a"), tab("https://b")])
+    assert status == 200
+    assert body["close_now"] is False
+    assert body["mode"] == "first-run"
+    assert themes(env) == {"Sorted": ["https://b", "https://a"]}
+    pending = call(env, "GET", "/api/pending-close")[1]
+    assert pending["urls"] == ["https://a", "https://b"]
+    assert [p["url"] for p in pending["tabs"]] == ["https://a", "https://b"]
+
+
+def test_email_tabs_go_straight_to_email_follow_ups(env):
+    sweep(env, [tab("https://mail.google.com/mail/u/1/#inbox/AbCdEfG", "Re: pricing", kind="email")])
+    assert themes(env) == {"Email follow-ups": ["Re: pricing"]}
+
+
+def test_first_run_seeds_themes_from_tab_groups(env):
+    sweep(env, [tab("https://a", group_hint="Travel planning")])
+    assert "Travel planning" in call(env, "GET", "/api/state")[1]["theme_names"]
+
+
+def test_closed_tabs_leave_pending_list(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    call(env, "POST", "/api/closed", {"urls": ["https://a"]})
+    assert call(env, "GET", "/api/pending-close")[1]["urls"] == ["https://b"]
+
+
+def test_completing_first_run_starts_dry_run_then_live(env):
+    sweep(env, [tab("https://a")])
+    call(env, "POST", "/api/first-run/complete", {})
+    assert call(env, "GET", "/api/state")[1]["mode"] == "dry-run"
+    assert sweep(env, [tab("https://b")])[1]["close_now"] is False
+    env["clock"].advance(7)
+    assert call(env, "GET", "/api/state")[1]["mode"] == "live"
+    assert sweep(env, [tab("https://c")])[1]["close_now"] is True
+
+
+def test_tab_actions_round_trip(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    board = call(env, "GET", "/api/board")[1]
+    a = next(t for t in board["themes"][0]["tabs"] if t["title"] == "https://a")
+    assert call(env, "POST", f"/api/tabs/{a['id']}/check", {})[0] == 200
+    assert [t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]] == ["https://a"]
+    call(env, "POST", f"/api/tabs/{a['id']}/uncheck", {})
+    call(env, "POST", f"/api/tabs/{a['id']}/move", {"theme": "Other", "index": 0})
+    assert themes(env) == {"Sorted": ["https://b"], "Other": ["https://a"]}
+
+
+def test_theme_actions_round_trip(env):
+    sweep(env, [tab("https://a")])
+    tid = call(env, "GET", "/api/board")[1]["themes"][0]["id"]
+    call(env, "POST", f"/api/themes/{tid}/rename", {"name": "Renamed"})
+    assert list(themes(env)) == ["Renamed"]
+    assert call(env, "POST", f"/api/themes/{tid}/rename", {"name": ""})[0] == 400
+
+
+def test_snooze_hides_tab(env, clock):
+    sweep(env, [tab("https://a")])
+    tid = call(env, "GET", "/api/board")[1]["themes"][0]["tabs"][0]["id"]
+    call(env, "POST", f"/api/tabs/{tid}/snooze", {"until": clock() + DAY})
+    assert themes(env) == {}
+
+
+def test_resort_requests_unsorted_retry(env):
+    call(env, "POST", "/api/resort", {})
+    assert env["sorted"][-1] is True
+
+
+def test_settings_only_accept_known_keys(env):
+    assert call(env, "PATCH", "/api/settings", {"model": "opus"})[0] == 200
+    assert call(env, "GET", "/api/state")[1]["settings"]["model"] == "opus"
+    assert call(env, "PATCH", "/api/settings", {"evil": 1})[0] == 400
+
+
+def test_memory_reports_cap(env):
+    assert call(env, "GET", "/api/memory")[1] == {
+        "chrome_bytes": 1_200_000_000, "cap_bytes": 1536 * 1024 * 1024, "over": False,
+    }
+
+
+def test_markdown_export_lists_themes(env):
+    sweep(env, [tab("https://a", "Alpha")])
+    req = urllib.request.Request(f"http://127.0.0.1:{env['port']}/api/export.md")
+    with urllib.request.urlopen(req) as r:
+        text = r.read().decode()
+    assert "## Sorted" in text and "- [ ] [Alpha](https://a)" in text
+
+
+def test_merging_themes_dismisses_matching_suggestion(env):
+    store = env["store"]
+    for name in ("Skills A", "Skills B"):
+        (i,) = store.capture([{"url": f"https://{name}", "title": name}])
+        store.assign(i, name)
+    store.set_setting("merge_suggestions", [{"from": "Skills A", "into": "Skills B", "reason": "x"}])
+    ids = {t["name"]: t["id"] for t in call(env, "GET", "/api/board")[1]["themes"]}
+    call(env, "POST", f"/api/themes/{ids['Skills A']}/merge", {"into": ids["Skills B"]})
+    assert list(themes(env)) == ["Skills B"]
+    assert call(env, "GET", "/api/state")[1]["merge_suggestions"] == []
+
+
+def test_sorter_survives_unexpected_errors_and_reports_them():
+    from server.app import Sorter
+    import time as _t
+    errors, runs = [], []
+
+    def boom(include_unsorted=False):
+        runs.append(include_unsorted)
+        if len(runs) == 1:
+            _t.sleep(0.2)
+            raise BrokenPipeError("claude went away")
+
+    s = Sorter(boom, background=True, on_error=errors.append)
+    s.request()
+    s.request(include_unsorted=True)  # queued while the first run is failing
+    for _ in range(50):
+        if not s.running:
+            break
+        _t.sleep(0.05)
+    assert s.running is False
+    assert runs == [False, True]
+    assert "claude went away" in str(errors[0])
+    s.request()
+    _t.sleep(0.2)
+    assert len(runs) == 3

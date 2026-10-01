@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Triage",
+  "version": "0.1.0",
+  "description": "Sweeps stale tabs into a themed, prioritized local dashboard and keeps Chrome's memory in check.",
+  "permissions": ["tabs", "tabGroups", "alarms", "scripting", "storage", "favicon"],
+  "host_permissions": ["<all_urls>"],
+  "background": { "service_worker": "background.js", "type": "module" },
+  "action": { "default_title": "Open Tab Triage" }
+}
