@@ -16,3 +16,12 @@ export function rankedOrder(all, visibleRanked, draggedId, index, intoRanked) {
   order.splice(before == null ? order.length : order.indexOf(before), 0, draggedId);
   return order;
 }
+
+// Target index (among visible ranked themes, excluding the moved one) for the menu moves
+// "top" | "up" | "down"; null when the move would do nothing. Feed the result to rankedOrder.
+export function nudgeIndex(visibleRanked, id, direction) {
+  const i = visibleRanked.indexOf(id);
+  if (i === -1) return { top: 0, up: visibleRanked.length, down: null }[direction];
+  if (direction === "top" || direction === "up") return i === 0 ? null : direction === "top" ? 0 : i - 1;
+  return i === visibleRanked.length - 1 ? null : i + 1;
+}

@@ -2,7 +2,7 @@
 
 import { api } from "../lib/api.js";
 import { snoozePresets, ago, dayLabel } from "../lib/time.js";
-import { dropIndex, rankedOrder } from "../lib/dnd.js";
+import { dropIndex, rankedOrder, nudgeIndex } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
 import { rangeIds } from "../lib/select.js";
@@ -261,7 +261,7 @@ function themeCard(th, i) {
   ].join("");
   return `
     <li class="theme ${th.ranked ? "" : "unranked"}" data-theme-id="${th.id}" data-theme-name="${esc(th.name)}">
-      <div class="rank" draggable="true" data-drag="theme" title="Drag to reprioritize">
+      <div class="rank" ${th.name === "Unsorted" ? 'title="Unsorted always stays last"' : 'draggable="true" data-drag="theme" title="Drag to reprioritize"'}>
         <b>${th.ranked ? String(i + 1).padStart(2, "0") : "—"}</b><span class="grip">⋮⋮</span>
       </div>
       <div class="theme-body">
@@ -301,10 +301,10 @@ function renderThemes() {
   const ranked = themes.filter((t) => t.ranked);
   const unranked = themes.filter((t) => !t.ranked);
   return `
-    <div class="zone-label">Your priorities</div>
+    <div class="zone-label" data-zone="ranked">Your priorities</div>
     <ol class="theme-list ${ranked.length ? "" : "empty"}" id="ranked">${ranked.map(themeCard).join("")}</ol>
     ${unranked.length ? `
-      <div class="zone-label">Unranked · drag up to prioritize</div>
+      <div class="zone-label" data-zone="unranked">Unranked · drag up to prioritize</div>
       <ol class="theme-list" id="unranked">${unranked.map((t, i) => themeCard(t, i)).join("")}</ol>` : ""}
     ${later.length ? `
       <div class="zone-label">Later · ${later.length}</div>
@@ -568,6 +568,11 @@ const actions = {
     const th = themeById(id);
     const open = th.tabs.filter((t) => t.status === "open").length;
     popover(el, `
+      ${th.name === "Unsorted" ? "" : `
+      <button data-choice="move:top">Move to top</button>
+      <button data-choice="move:up">Move up</button>
+      <button data-choice="move:down">Move down</button>
+      <hr>`}
       <button data-choice="rename">Rename</button>
       <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
       <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
@@ -575,7 +580,13 @@ const actions = {
       ${others.length ? "<hr>" : ""}
       ${others.map((t) => `<button data-choice="merge:${t.id}">Merge into <span class="hint">${esc(t.name)}</span></button>`).join("")}`,
     (choice) => {
-      if (choice === "rename") actions.rename(el.closest(".theme").querySelector(".theme-name"));
+      if (choice.startsWith("move:")) {
+        const visibleRanked = S.board.themes.filter((t) => t.ranked).map((t) => t.id);
+        const index = nudgeIndex(visibleRanked, id, choice.slice(5));
+        if (index == null) return;
+        const all = [...S.board.themes, ...S.board.snoozed_themes, ...S.board.later_themes];
+        act(() => api("POST", "/api/themes/reorder", { ids: rankedOrder(all, visibleRanked, id, index, true) }));
+      } else if (choice === "rename") actions.rename(el.closest(".theme").querySelector(".theme-name"));
       else if (choice === "done") {
         act(() => api("POST", `/api/themes/${id}/done`, {}));
         toast(`Marked ${open} tabs done. Untick any of them in Completed within 45 days.`);
@@ -733,10 +744,12 @@ function dropTarget(e) {
     return { list, rows };
   }
   if (S.drag?.type === "theme") {
-    const list = e.target.closest(".theme-list");
+    // Letting go on a section label counts too: it lands at the top of that section.
+    const label = e.target.closest(".zone-label[data-zone]");
+    const list = label ? $(label.dataset.zone) : e.target.closest(".theme-list");
     if (!list) return null;
     const rows = [...list.querySelectorAll(":scope > .theme")].filter((r) => Number(r.dataset.themeId) !== S.drag.id);
-    return { list, rows };
+    return { list, rows, index: label ? 0 : null };
   }
   return null;
 }
@@ -747,7 +760,15 @@ document.addEventListener("dragstart", (e) => {
   if (handle) {
     const card = handle.closest(".theme");
     S.drag = { type: "theme", id: Number(card.dataset.themeId), el: card };
-    e.dataTransfer.setDragImage(card, 30, 20);
+    const chip = document.createElement("div");
+    chip.className = "drag-chip";
+    chip.textContent = card.dataset.themeName;
+    document.body.appendChild(chip);
+    e.dataTransfer.setDragImage(chip, 14, 14);
+    S.drag.chip = chip;
+    // Collapse cards to their headers so the whole list fits on screen. Deferred: changing the
+    // layout inside dragstart itself makes Chrome cancel the drag.
+    setTimeout(() => document.body.classList.add("reordering"), 0);
   } else if (row) {
     S.drag = { type: "tab", id: Number(row.dataset.tabId), el: row };
   } else {
@@ -762,7 +783,7 @@ document.addEventListener("dragover", (e) => {
   const target = dropTarget(e);
   if (!target) return;
   e.preventDefault();
-  const i = dropIndex(target.rows.map((r) => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; }), e.clientY);
+  const i = target.index ?? dropIndex(target.rows.map((r) => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; }), e.clientY);
   S.drag.index = i;
   S.drag.list = target.list;
   const before = target.rows[i];
@@ -788,6 +809,8 @@ document.addEventListener("drop", (e) => {
 
 document.addEventListener("dragend", () => {
   line.remove();
+  document.body.classList.remove("reordering");
+  S.drag?.chip?.remove();
   S.drag?.el.classList.remove("dragging");
   S.drag = null;
 });

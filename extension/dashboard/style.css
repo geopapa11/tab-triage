@@ -198,6 +198,21 @@ a { color: inherit; }
 }
 .merge-hint span { flex: 1; }
 
+/* --- reordering themes: cards shrink to headers while one is dragged ------------------ */
+
+.reordering .theme .tabs,
+.reordering .theme .done-toggle,
+.reordering .theme .merge-hint,
+.reordering .theme .theme-tools { display: none; }
+.reordering .theme .rank { padding-top: 8px; }
+.reordering .theme .rank b { font-size: 20px; }
+.reordering .theme-body { padding-block: 8px; }
+.reordering .zone-label[data-zone] { color: var(--ink); }
+.drag-chip {
+  position: fixed; top: -100px; left: -100px; padding: 6px 12px; border-radius: 8px;
+  background: var(--ink); color: var(--paper); font: 600 13px var(--sans); white-space: nowrap;
+}
+
 /* --- later --------------------------------------------------------------------------- */
 
 .later-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }

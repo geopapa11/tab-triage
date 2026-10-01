@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dropIndex, rankedOrder } from "./dnd.js";
+import { dropIndex, rankedOrder, nudgeIndex } from "./dnd.js";
 
 test("drop index counts rows whose midpoint is above the pointer", () => {
   const mids = [10, 30, 50];
@@ -28,4 +28,29 @@ test("moving a ranked theme to the top", () => {
 
 test("dropping a theme into the unranked zone unranks only that theme", () => {
   assert.deepEqual(rankedOrder(all, [1, 2], 1, 0, false), [9, 2]);
+});
+
+// nudgeIndex: where a theme goes among the visible ranked themes (excluding itself) for a menu move.
+test("move up / down / to top for a ranked theme", () => {
+  const ranked = [1, 2, 3, 4];
+  assert.equal(nudgeIndex(ranked, 3, "up"), 1);
+  assert.equal(nudgeIndex(ranked, 3, "down"), 3);
+  assert.equal(nudgeIndex(ranked, 3, "top"), 0);
+});
+
+test("moves that would go past the ends do nothing", () => {
+  assert.equal(nudgeIndex([1, 2], 1, "up"), null);
+  assert.equal(nudgeIndex([1, 2], 2, "down"), null);
+  assert.equal(nudgeIndex([1, 2], 1, "top"), null);
+});
+
+test("an unranked theme moving up joins the end of the priorities", () => {
+  assert.equal(nudgeIndex([1, 2], 9, "up"), 2);
+  assert.equal(nudgeIndex([1, 2], 9, "top"), 0);
+  assert.equal(nudgeIndex([1, 2], 9, "down"), null);
+});
+
+test("composes with rankedOrder", () => {
+  const all = [{ id: 1, position: 0 }, { id: 2, position: 1 }, { id: 3, position: 2 }];
+  assert.deepEqual(rankedOrder(all, [1, 2, 3], 3, nudgeIndex([1, 2, 3], 3, "up"), true), [1, 3, 2]);
 });
