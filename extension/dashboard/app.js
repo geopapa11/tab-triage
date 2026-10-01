@@ -5,6 +5,7 @@ import { snoozePresets, ago, dayLabel } from "../lib/time.js";
 import { dropIndex, rankedOrder } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
+import { rangeIds } from "../lib/select.js";
 
 const DAY_S = 86400;
 const LIVE_TAB_BUDGET = 12;
@@ -24,6 +25,7 @@ const S = {
   offline: false,
   expandedDone: new Set(),
   selected: new Set(),
+  anchor: null, // last row clicked, for shift-click ranges
   drag: null,
   busy: false,
 };
@@ -619,14 +621,27 @@ document.addEventListener("click", (e) => {
     actions[el.dataset.action](el, e);
     return;
   }
-  // Clicking a tab row's empty space (not its title, tick box or tools) toggles selection.
+  // Clicking a tab row's empty space (not its title, tick box or tools) toggles selection;
+  // shift-click selects every visible row between the last clicked row and this one.
   const row = e.target.closest(".tab[data-tab-id]");
   if (row && !e.target.closest("a, button, input")) {
     const id = Number(row.dataset.tabId);
-    S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
-    row.classList.toggle("selected", S.selected.has(id));
+    if (e.shiftKey) {
+      const visible = [...document.querySelectorAll(".tab[data-tab-id]")].map((r) => Number(r.dataset.tabId));
+      for (const k of rangeIds(visible, S.anchor, id)) S.selected.add(k);
+    } else {
+      S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
+    }
+    S.anchor = id;
+    for (const r of document.querySelectorAll(".tab[data-tab-id]")) {
+      r.classList.toggle("selected", S.selected.has(Number(r.dataset.tabId)));
+    }
     renderBulkBar();
   }
+});
+// Shift-clicking rows would otherwise also highlight page text.
+document.addEventListener("mousedown", (e) => {
+  if (e.shiftKey && e.target.closest(".tab[data-tab-id]") && !e.target.closest("a, button, input")) e.preventDefault();
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
@@ -639,6 +654,7 @@ document.addEventListener("keydown", (e) => {
 
 function clearSelection() {
   S.selected.clear();
+  S.anchor = null;
   for (const r of document.querySelectorAll(".tab.selected")) r.classList.remove("selected");
   renderBulkBar();
 }
