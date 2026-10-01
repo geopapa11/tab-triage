@@ -6,7 +6,7 @@ import urllib.request
 import pytest
 
 from server.app import make_server, sweep_mode
-from server.memory import chrome_rss_bytes
+from server.memory import chrome_memory
 from server.store import DAY, Store
 
 from .test_store import Clock
@@ -14,15 +14,23 @@ from .test_store import Clock
 # --- pure helpers --------------------------------------------------------------
 
 PS_OUTPUT = """\
-  1048576 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-   524288 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer)
-   999999 /Applications/Slack.app/Contents/MacOS/Slack
-      100 /usr/bin/ps
+  700000 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
+  300000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer) --type=renderer --lang=en-US --renderer-client-id=12
+  200000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer) --type=renderer --extension-process --lang=en-US
+  100000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (GPU).app/Contents/MacOS/Google Chrome Helper (GPU) --type=gpu-process --gpu-preferences=x
+   50000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper.app/Contents/MacOS/Google Chrome Helper --type=utility --utility-sub-type=network.mojom.NetworkService
+  400000 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Framework.framework/Versions/154/Helpers/Google Chrome Helper (Renderer).app/Contents/MacOS/Google Chrome Helper (Renderer) --type=renderer --renderer-client-id=40
+  999999 /Applications/Slack.app/Contents/MacOS/Slack --type=renderer
+     100 /usr/bin/ps
 """
 
 
-def test_chrome_rss_sums_only_chrome_processes():
-    assert chrome_rss_bytes(PS_OUTPUT) == (1048576 + 524288) * 1024
+def test_chrome_memory_splits_tabs_from_the_rest():
+    kb = 1024
+    assert chrome_memory(PS_OUTPUT) == {
+        "total": (700000 + 300000 + 200000 + 100000 + 50000 + 400000) * kb,
+        "tabs": (300000 + 400000) * kb,
+    }
 
 
 @pytest.mark.parametrize("days_since_first_run, mode, warn", [
@@ -55,7 +63,7 @@ def env(tmp_path, clock):
         for t in store.pending_sort():
             store.assign(t["id"], "Sorted")
 
-    srv = make_server(store, sort_fn=sort_fn, memory_fn=lambda: 1_200_000_000, port=0,
+    srv = make_server(store, sort_fn=sort_fn, memory_fn=lambda: {"total": 2_000_000_000, "tabs": 900_000_000}, port=0,
                       background=False)
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     yield {"store": store, "port": srv.server_address[1], "sorted": sorted_calls, "clock": clock}
@@ -184,10 +192,13 @@ def test_settings_only_accept_known_keys(env):
     assert call(env, "PATCH", "/api/settings", {"max_themes": 30})[1]["max_themes"] == 30
 
 
-def test_memory_reports_cap(env):
+def test_memory_guard_compares_tab_memory_with_tab_budget(env):
     assert call(env, "GET", "/api/memory")[1] == {
-        "chrome_bytes": 1_200_000_000, "cap_bytes": 1536 * 1024 * 1024, "over": False,
+        "chrome_bytes": 2_000_000_000, "tabs_bytes": 900_000_000,
+        "tab_cap_bytes": 1024 * 1024 * 1024, "over": False,
     }
+    call(env, "PATCH", "/api/settings", {"tab_memory_cap_mb": 512})
+    assert call(env, "GET", "/api/memory")[1]["over"] is True
 
 
 def test_markdown_export_lists_themes(env):

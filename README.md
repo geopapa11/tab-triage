@@ -40,7 +40,7 @@ Never closed: pinned, active, playing audio, half-filled forms, and the keep-ope
   inbox window for keep-open tabs. Tab groups move whole; nothing is closed.
 - Click a tab row's empty space to select it (shift-click selects a range); the bar offers Done / Move to / Snooze / Delete.
   A theme's ⋯ menu has Mark all done, Dissolve (re-sort its tabs) and Delete (gone for good).
-- Memory guard: every 5 min and after each page load, if Chrome > cap, least-recently-used tabs
+- Memory guard: every 5 min and after each page load, if tab memory > the tab budget (1 GB), least-recently-used tabs
   are *unloaded* (not closed); keep-open tabs last.
 
 ## Claude login

@@ -22,7 +22,7 @@ DRY_RUN_DAYS = 7
 DEFAULT_SETTINGS = {
     "model": "sonnet",
     "fallback_model": "haiku",
-    "memory_cap_mb": 1536,
+    "tab_memory_cap_mb": 1024,
     "max_themes": 15,
     "keep_open": [
         "https://mail.google.com/mail/u/*/#inbox",
@@ -252,9 +252,10 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         return settings()
 
     def get_memory(body, m):
-        used = memory_fn()
-        cap = settings()["memory_cap_mb"] * 1024 * 1024
-        return {"chrome_bytes": used, "cap_bytes": cap, "over": used > cap}
+        mem = memory_fn()
+        cap = settings()["tab_memory_cap_mb"] * 1024 * 1024
+        return {"chrome_bytes": mem["total"], "tabs_bytes": mem["tabs"], "tab_cap_bytes": cap,
+                "over": mem["tabs"] > cap}
 
     routes = [
         ("GET", r"/health", lambda b, m: {"ok": True}),

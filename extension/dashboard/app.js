@@ -135,10 +135,9 @@ function renderInstruments() {
     $("instruments").innerHTML = "";
     return;
   }
-  const { chrome_bytes: used, cap_bytes: cap } = S.memory;
-  const soft = 1024 ** 3;
-  const memCls = used > cap ? "over" : used > soft ? "warn" : "";
-  const pct = Math.min(100, (used / cap) * 100);
+  const { chrome_bytes: total, tabs_bytes: tabsMem, tab_cap_bytes: cap } = S.memory;
+  const memCls = tabsMem > cap ? "over" : tabsMem > cap * 0.8 ? "warn" : "";
+  const pct = Math.min(100, (tabsMem / cap) * 100);
   const tabPct = Math.min(100, (S.liveTabs / LIVE_TAB_BUDGET) * 100);
   const mode = modeInfo();
   $("instruments").innerHTML = `
@@ -146,10 +145,10 @@ function renderInstruments() {
       <div class="label"><span>Mode</span></div>
       <div class="value"><span class="pill ${mode.cls}">${esc(mode.label)}</span></div>
     </div>
-    <div class="gauge" title="Sum of all Chrome processes (RSS). Soft target 1 GB, cap ${gb(cap)} GB.">
-      <div class="label"><span>Chrome memory</span><span>cap ${+(cap / 1024 ** 3).toFixed(2)} GB</span></div>
-      <div class="value">${gb(used)} GB</div>
-      <div class="meter ${memCls}"><i style="width:${pct}%"></i><span class="tick" style="left:${(soft / cap) * 100}%"></span></div>
+    <div class="gauge" title="Memory of web-page tabs — the part unloading tabs can reduce. Above the budget, least-recently-used tabs are unloaded. The Chrome total also counts the browser itself, GPU, network and extensions (and over-counts shared memory).">
+      <div class="label"><span>Tab memory</span><span>budget ${+(cap / 1024 ** 3).toFixed(2)} GB</span></div>
+      <div class="value">${gb(tabsMem)} GB <span class="sub-value">· Chrome total ${gb(total)} GB</span></div>
+      <div class="meter ${memCls}"><i style="width:${pct}%"></i></div>
     </div>
     <div class="gauge" title="Loaded tabs across all windows">
       <div class="label"><span>Live tabs</span><span>budget ${LIVE_TAB_BUDGET}</span></div>
@@ -433,8 +432,8 @@ function renderSettings() {
     <label for="set-model">Sorting model</label>
     <select id="set-model">${[...new Set([s.model, ...models])].map((m) => `<option ${m === s.model ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
     <p class="help">An alias always means the newest version. Falls back to <b>${esc(s.fallback_model)}</b> if unavailable. Runs on your Claude subscription only.</p>
-    <label for="set-cap">Chrome memory cap (MB)</label>
-    <input id="set-cap" type="number" min="512" step="128" value="${s.memory_cap_mb}">
+    <label for="set-cap">Tab memory budget (MB)</label>
+    <input id="set-cap" type="number" min="256" step="128" value="${s.tab_memory_cap_mb}">
     <p class="help">Above this, least-recently-used tabs are unloaded (not closed), keep-open tabs last.</p>
     <label for="set-themes">Maximum themes</label>
     <input id="set-themes" type="number" min="5" max="60" value="${s.max_themes}">
@@ -594,7 +593,7 @@ const actions = {
   "save-settings": () => act(async () => {
     await api("PATCH", "/api/settings", {
       model: $("set-model").value,
-      memory_cap_mb: Number($("set-cap").value) || 1536,
+      tab_memory_cap_mb: Number($("set-cap").value) || 1024,
       max_themes: Number($("set-themes").value) || 15,
       keep_open: lines("set-keep"),
       never_read: lines("set-never"),

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from .app import make_server
 from .classifier import ClaudeRunner, SortError, sort_pending
-from .memory import chrome_rss_bytes
+from .memory import chrome_memory
 from .store import Store
 
 DEFAULT_DB = Path.home() / "Library/Application Support/tab-triage/tabs.db"
@@ -42,7 +42,7 @@ def main():
             time.sleep(HOUSEKEEPING_EVERY)
 
     threading.Thread(target=housekeeping, daemon=True).start()
-    server = make_server(store, sort_fn=sort_fn, memory_fn=chrome_rss_bytes, port=args.port)
+    server = make_server(store, sort_fn=sort_fn, memory_fn=chrome_memory, port=args.port)
     print(f"tab-triage listening on http://127.0.0.1:{args.port} (db: {args.db})", flush=True)
     server.serve_forever()
 
