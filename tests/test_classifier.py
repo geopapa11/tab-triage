@@ -282,3 +282,9 @@ def test_theme_cap_comes_from_settings(home, runner, store):
     store.set_setting("max_themes", 16)
     sort_pending(store, runner)
     assert open_by_theme(store)["Recipes to try"] == ["n0", "n1"]
+
+
+def test_prompt_tells_ai_not_to_recreate_dissolved_themes():
+    corrections = [{"kind": "dissolve", "detail": {"theme": "Bad grouping"}}]
+    p = build_prompt(TABS, active={}, corrections=corrections)
+    assert 'dissolved theme "Bad grouping"' in p

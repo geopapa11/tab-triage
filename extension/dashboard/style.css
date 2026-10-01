@@ -261,6 +261,24 @@ a { color: inherit; }
 .empty-state b { display: block; font: 600 22px var(--serif); color: var(--ink); margin-bottom: 6px; }
 .footnote { font: 11px var(--mono); color: var(--muted); margin-top: 14px; }
 
+/* --- selection & bulk bar ------------------------------------------------------------ */
+
+.tab { cursor: default; border-radius: 6px; transition: background .12s; }
+.tab:hover { background: color-mix(in srgb, var(--paper) 70%, transparent); }
+.tab.selected { background: var(--go-soft); box-shadow: inset 3px 0 0 var(--go); }
+.bulkbar {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 25;
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 16px;
+  background: var(--card); border: 1px solid var(--rule-strong); border-radius: 12px;
+  box-shadow: 0 16px 40px -14px rgba(0, 0, 0, .35);
+}
+.bulkbar[hidden] { display: none; }
+.bulk-count { font: 600 12px var(--mono); margin-right: 6px; }
+.btn.danger { color: var(--signal); border-color: var(--signal); }
+.popover button.danger { color: var(--signal); }
+.bulk-on .toast { bottom: 84px; }
+.bulk-on { padding-bottom: 160px; }
+
 /* --- popover, settings, toast ------------------------------------------------------- */
 
 .popover {

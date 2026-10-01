@@ -186,6 +186,8 @@ def build_prompt(tabs, active, corrections):
                 lines.append(f"- renamed theme \"{d['from']}\" to \"{d['to']}\"")
             elif c["kind"] == "merge":
                 lines.append(f"- merged theme \"{d['from']}\" into \"{d['into']}\"")
+            elif c["kind"] == "dissolve":
+                lines.append(f"- dissolved theme \"{d['theme']}\" (a bad grouping: do not create it again)")
         lines.append("")
     lines.append("Tabs:")
     for t in tabs:

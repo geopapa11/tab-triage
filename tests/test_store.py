@@ -311,3 +311,59 @@ def test_opening_a_tab_cancels_its_pending_close(store):
 def test_pending_close_reports_capture_time(store, clock):
     store.capture([cap("https://a")], pending_close=True)
     assert store.pending_close() == [{"url": "https://a", "last_seen_at": clock()}]
+
+
+# --- bulk & delete ------------------------------------------------------------
+
+def test_delete_tabs_removes_them_everywhere(store):
+    a, b = store.capture([cap("https://a"), cap("https://b")], pending_close=True)
+    store.assign(a, "SQL")
+    store.assign(b, "SQL")
+    store.check(b)
+    store.delete_tabs([a, b])
+    assert store.board()["themes"] == []
+    assert store.completed() == []
+    assert store.pending_close_urls() == []
+
+
+def test_deleting_a_themes_last_tab_removes_the_theme(store):
+    (a,) = add_to_theme(store, "Old idea", "https://a")
+    add_to_theme(store, "Keep", "https://b")
+    store.delete_tabs([a])
+    assert store.theme_names() == ["Keep"]
+    assert store.sortable_theme_names() == ["Keep"]
+
+
+def test_delete_theme_removes_its_tabs_and_itself(store):
+    add_to_theme(store, "Gone", "https://a", "https://b")
+    add_to_theme(store, "Keep", "https://c")
+    tid = board_theme(store.board(), "Gone")["id"]
+    store.delete_theme(tid)
+    assert store.theme_names() == ["Keep"]
+    assert [t["title"] for t in board_theme(store.board(), "Keep")["tabs"]] == ["https://c"]
+
+
+def test_mark_theme_done_ticks_every_open_tab(store, clock):
+    a, b = add_to_theme(store, "SQL", "https://a", "https://b")
+    tid = board_theme(store.board(), "SQL")["id"]
+    store.mark_theme_done(tid)
+    assert sorted(t["title"] for t in store.completed()) == ["https://a", "https://b"]
+    assert all(t["completed_at"] == clock() for t in store.completed())
+
+
+def test_dissolve_theme_sends_tabs_back_for_sorting(store):
+    a, b = add_to_theme(store, "Bad grouping", "https://a", "https://b")
+    tid = board_theme(store.board(), "Bad grouping")["id"]
+    store.dissolve_theme(tid)
+    assert store.theme_names() == []
+    assert sorted(t["id"] for t in store.pending_sort()) == [a, b]
+    c = store.corrections()[0]
+    assert (c["kind"], c["detail"]) == ("dissolve", {"theme": "Bad grouping"})
+
+
+def test_dissolve_keeps_completed_history(store):
+    a, b = add_to_theme(store, "Bad grouping", "https://a", "https://b")
+    store.check(a)
+    store.dissolve_theme(board_theme(store.board(), "Bad grouping")["id"])
+    assert [(t["title"], t["theme"]) for t in store.completed()] == [("https://a", "Unsorted")]
+    assert [t["id"] for t in store.pending_sort()] == [b]

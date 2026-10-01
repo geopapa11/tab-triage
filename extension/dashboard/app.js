@@ -22,6 +22,7 @@ const S = {
   lastSweep: null,
   offline: false,
   expandedDone: new Set(),
+  selected: new Set(),
   drag: null,
   busy: false,
 };
@@ -100,6 +101,9 @@ function render() {
   }
   const views = { themes: renderThemes, snoozed: renderSnoozed, completed: renderCompleted };
   $("main").innerHTML = (views[S.view] || renderThemes)();
+  const present = new Set([...document.querySelectorAll("[data-tab-id]")].map((r) => Number(r.dataset.tabId)));
+  for (const id of S.selected) if (!present.has(id)) S.selected.delete(id);
+  renderBulkBar();
 }
 
 function renderDateline() {
@@ -223,7 +227,7 @@ function tabRow(t, { theme = null, done = false } = {}) {
     ? `<button class="tool" data-action="wake-tab">Wake now</button>`
     : done ? "" : `<button class="tool" data-action="snooze-tab">Snooze</button>`;
   return `
-    <li class="tab ${t.status} ${t.back ? "back" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
+    <li class="tab ${t.status} ${t.back ? "back" : ""} ${S.selected.has(t.id) ? "selected" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
         draggable="${!done && !t.snoozed_until && !theme}">
       <button class="check" data-action="${t.status === "done" ? "uncheck" : "check"}"
               aria-label="${t.status === "done" ? "Mark not done" : "Mark done"}"></button>
@@ -526,13 +530,27 @@ const actions = {
   "theme-menu": (el) => {
     const id = themeId(el);
     const others = S.board.themes.filter((t) => t.id !== id);
+    const th = themeById(id);
+    const open = th.tabs.filter((t) => t.status === "open").length;
     popover(el, `
       <button data-choice="rename">Rename</button>
-      <hr>
+      <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
+      <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
+      <button data-choice="delete" class="danger">Delete theme <span class="hint">gone for good</span></button>
+      ${others.length ? "<hr>" : ""}
       ${others.map((t) => `<button data-choice="merge:${t.id}">Merge into <span class="hint">${esc(t.name)}</span></button>`).join("")}`,
     (choice) => {
       if (choice === "rename") actions.rename(el.closest(".theme").querySelector(".theme-name"));
-      else act(() => api("POST", `/api/themes/${id}/merge`, { into: Number(choice.split(":")[1]) }));
+      else if (choice === "done") {
+        act(() => api("POST", `/api/themes/${id}/done`, {}));
+        toast(`Marked ${open} tabs done. Untick any of them in Completed within 45 days.`);
+      } else if (choice === "dissolve") {
+        if (!confirm(`Dissolve “${th.name}”? Its ${open} tabs go back to Claude to be sorted again, and Claude won't recreate this theme.`)) return;
+        act(() => api("POST", `/api/themes/${id}/dissolve`, {}));
+      } else if (choice === "delete") {
+        if (!confirm(`Delete “${th.name}” and all ${th.tabs.length} of its tabs for good? This can't be undone. (Tabs still open in Chrome stay open.)`)) return;
+        act(() => api("POST", `/api/themes/${id}/delete`, {}));
+      } else act(() => api("POST", `/api/themes/${id}/merge`, { into: Number(choice.split(":")[1]) }));
     });
   },
   "accept-merge": (el) => {
@@ -581,10 +599,76 @@ document.addEventListener("click", (e) => {
     return;
   }
   const el = e.target.closest("[data-action]");
-  if (el && actions[el.dataset.action]) actions[el.dataset.action](el, e);
+  if (el && actions[el.dataset.action]) {
+    actions[el.dataset.action](el, e);
+    return;
+  }
+  // Clicking a tab row's empty space (not its title, tick box or tools) toggles selection.
+  const row = e.target.closest(".tab[data-tab-id]");
+  if (row && !e.target.closest("a, button, input")) {
+    const id = Number(row.dataset.tabId);
+    S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
+    row.classList.toggle("selected", S.selected.has(id));
+    renderBulkBar();
+  }
 });
 document.addEventListener("keydown", (e) => {
-  if (e.key === "Escape") closePopover();
+  if (e.key === "Escape") {
+    closePopover();
+    clearSelection();
+  }
+});
+
+// --- multi-select bulk bar --------------------------------------------------------------
+
+function clearSelection() {
+  S.selected.clear();
+  for (const r of document.querySelectorAll(".tab.selected")) r.classList.remove("selected");
+  renderBulkBar();
+}
+
+function renderBulkBar() {
+  const bar = $("bulkbar");
+  const n = S.selected.size;
+  bar.hidden = n === 0;
+  document.body.classList.toggle("bulk-on", n > 0);
+  if (!n) return;
+  bar.innerHTML = `
+    <span class="bulk-count">${n} selected</span>
+    <button class="btn small" data-bulk="check">Done</button>
+    <button class="btn small ghost" data-bulk="move">Move to…</button>
+    <button class="btn small ghost" data-bulk="snooze">Snooze</button>
+    <button class="btn small ghost danger" data-bulk="delete">Delete</button>
+    <button class="tool" data-bulk="clear">Clear</button>`;
+}
+
+async function bulk(action, extra = {}) {
+  const ids = [...S.selected];
+  clearSelection();
+  await act(() => api("POST", "/api/tabs/bulk", { ids, action, ...extra }));
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-bulk]");
+  if (!b) return;
+  const n = S.selected.size;
+  const kind = b.dataset.bulk;
+  if (kind === "clear") clearSelection();
+  else if (kind === "check") {
+    bulk("check");
+    toast(`Marked ${n} tabs done. They stay in Completed for 45 days.`);
+  } else if (kind === "snooze") snoozeMenu(b, (until) => bulk("snooze", { until }));
+  else if (kind === "delete") {
+    if (confirm(`Delete ${n} tabs for good? This can't be undone. (Tabs still open in Chrome stay open.)`)) bulk("delete");
+  } else if (kind === "move") {
+    popover(b, `
+      ${S.board.themes.map((t) => `<button data-choice="${esc(t.name)}">${esc(t.name)}</button>`).join("")}
+      <hr><button data-choice="__new">New theme…</button>`,
+    (choice) => {
+      const theme = choice === "__new" ? prompt("Name of the new theme:")?.trim() : choice;
+      if (theme) bulk("move", { theme });
+    });
+  }
 });
 
 // --- drag and drop ---------------------------------------------------------------------

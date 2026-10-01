@@ -311,6 +311,46 @@ class Store:
             self._touch(into)
             self._record("merge", {"from": src, "into": dst})
 
+    def delete_tabs(self, tab_ids):
+        """Gone for good: no Completed history. Themes left with no tabs are removed too."""
+        with self._lock, self._db:
+            theme_ids = {self._theme_id(tid) for tid in tab_ids
+                         if self._one("SELECT 1 FROM tabs WHERE id = ?", tid)}
+            self._db.executemany("DELETE FROM tabs WHERE id = ?", [(tid,) for tid in tab_ids])
+            for th in theme_ids - {None}:
+                if not self._one("SELECT 1 FROM tabs WHERE theme_id = ?", th):
+                    self._db.execute("DELETE FROM themes WHERE id = ?", (th,))
+
+    def delete_theme(self, theme_id):
+        with self._lock, self._db:
+            self._db.execute("DELETE FROM tabs WHERE theme_id = ?", (theme_id,))
+            self._db.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
+
+    def mark_theme_done(self, theme_id):
+        with self._lock, self._db:
+            self._db.execute(
+                "UPDATE tabs SET status = 'done', completed_at = ?, back = 0 "
+                "WHERE theme_id = ? AND status = 'open'",
+                (self.now(), theme_id),
+            )
+            self._touch(theme_id)
+
+    def dissolve_theme(self, theme_id):
+        """Drop the grouping, keep the tabs: open ones go back to be sorted again; ticked ones
+        keep their Completed history under Unsorted."""
+        with self._lock:
+            name = self._theme_name(theme_id)
+            has_done = self._one("SELECT 1 FROM tabs WHERE theme_id = ? AND status = 'done'", theme_id)
+            unsorted = self.create_theme("Unsorted") if has_done else None
+            with self._db:
+                self._db.execute(
+                    "UPDATE tabs SET theme_id = NULL, back = 0 WHERE theme_id = ? AND status = 'open'",
+                    (theme_id,),
+                )
+                self._db.execute("UPDATE tabs SET theme_id = ? WHERE theme_id = ?", (unsorted, theme_id))
+                self._db.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
+                self._record("dissolve", {"theme": name})
+
     def purge(self):
         with self._lock, self._db:
             self._db.execute(

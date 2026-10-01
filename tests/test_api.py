@@ -234,3 +234,55 @@ def test_sorter_survives_unexpected_errors_and_reports_them():
     s.request()
     _t.sleep(0.2)
     assert len(runs) == 3
+
+
+# --- bulk & theme actions ---------------------------------------------------------
+
+def ids_by_title(env):
+    return {t["title"]: t["id"] for th in call(env, "GET", "/api/board")[1]["themes"] for t in th["tabs"]}
+
+
+def test_bulk_done_and_delete(env):
+    sweep(env, [tab("https://a"), tab("https://b"), tab("https://c")])
+    ids = ids_by_title(env)
+    assert call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://b"]], "action": "check"})[0] == 200
+    assert sorted(t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]) == ["https://a", "https://b"]
+    call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://c"]], "action": "delete"})
+    assert [t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]] == ["https://b"]
+    assert themes(env) == {}
+
+
+def test_bulk_move_keeps_selection_order_at_top(env):
+    sweep(env, [tab("https://a"), tab("https://b"), tab("https://c")])
+    ids = ids_by_title(env)
+    call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://c"]], "action": "move", "theme": "Picked"})
+    assert themes(env) == {"Sorted": ["https://b"], "Picked": ["https://a", "https://c"]}
+
+
+def test_bulk_snooze(env, clock):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    ids = ids_by_title(env)
+    call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"]], "action": "snooze", "until": clock() + DAY})
+    assert themes(env) == {"Sorted": ["https://b"]}
+
+
+def test_bulk_rejects_unknown_action(env):
+    assert call(env, "POST", "/api/tabs/bulk", {"ids": [1], "action": "explode"})[0] == 400
+
+
+def test_theme_done_and_delete(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    tid = call(env, "GET", "/api/board")[1]["themes"][0]["id"]
+    call(env, "POST", f"/api/themes/{tid}/done", {})
+    assert len(call(env, "GET", "/api/completed")[1]["tabs"]) == 2
+    call(env, "POST", f"/api/themes/{tid}/delete", {})
+    assert call(env, "GET", "/api/completed")[1]["tabs"] == []
+    assert call(env, "GET", "/api/state")[1]["theme_names"] == []
+
+
+def test_dissolve_resorts_the_tabs(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    tid = call(env, "GET", "/api/board")[1]["themes"][0]["id"]
+    env["store"].rename_theme(tid, "Bad grouping")
+    call(env, "POST", f"/api/themes/{tid}/dissolve", {})
+    assert themes(env) == {"Sorted": ["https://b", "https://a"]}  # fake sorter re-filed them

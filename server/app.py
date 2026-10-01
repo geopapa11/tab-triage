@@ -195,7 +195,35 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
             post_dismiss_merge(names, m)
         elif action == "snooze":
             store.snooze_theme(tid, body.get("until"))
+        elif action == "done":
+            store.mark_theme_done(tid)
+        elif action == "delete":
+            store.delete_theme(tid)
+        elif action == "dissolve":
+            store.dissolve_theme(tid)
+            sorter.request()
         return {"ok": True}
+
+    def post_bulk(body, m):
+        ids = [int(i) for i in body.get("ids", [])]
+        action = body.get("action")
+        if action == "check":
+            for tid in ids:
+                store.check(tid)
+        elif action == "snooze":
+            for tid in ids:
+                store.snooze_tab(tid, body.get("until"))
+        elif action == "move":
+            theme = str(body.get("theme") or "").strip()
+            if not theme:
+                raise BadRequest("theme name required")
+            for tid in reversed(ids):  # each lands on top, so reverse keeps the selection order
+                store.move_tab(tid, theme=theme, index=0)
+        elif action == "delete":
+            store.delete_tabs(ids)
+        else:
+            raise BadRequest(f"unknown bulk action {action!r}")
+        return {"ok": True, "count": len(ids)}
 
     def post_reorder_themes(body, m):
         store.reorder_themes([int(i) for i in body.get("ids", [])])
@@ -240,8 +268,9 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         ("POST", r"/api/closed", post_closed),
         ("POST", r"/api/first-run/complete", post_first_run_complete),
         ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|snooze|move|opened)", tab_action),
+        ("POST", r"/api/tabs/bulk", post_bulk),
         ("POST", r"/api/themes/reorder", post_reorder_themes),
-        ("POST", r"/api/themes/(?P<id>\d+)/(?P<action>rename|merge|snooze)", theme_action),
+        ("POST", r"/api/themes/(?P<id>\d+)/(?P<action>rename|merge|snooze|done|delete|dissolve)", theme_action),
         ("POST", r"/api/opened", post_opened),
         ("POST", r"/api/resort", post_resort),
         ("POST", r"/api/merge-suggestions/dismiss", post_dismiss_merge),
