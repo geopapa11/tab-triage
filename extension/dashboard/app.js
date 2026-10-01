@@ -271,6 +271,7 @@ function themeCard(th, i) {
           <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
           <div class="theme-tools">
             <button class="tool" data-action="open-theme">Open ${Math.min(6, open.length)}</button>
+            <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
             <button class="tool" data-action="snooze-theme">Snooze</button>
             <button class="tool" data-action="theme-menu" aria-label="More">⋯</button>
           </div>
@@ -291,7 +292,8 @@ function themeCard(th, i) {
 
 function renderThemes() {
   const themes = S.board.themes;
-  if (!themes.length) {
+  const later = S.board.later_themes;
+  if (!themes.length && !later.length) {
     return `<div class="empty-state"><b>Nothing here yet</b>${
       S.state.mode === "first-run" ? "Run the first sweep to sort your open tabs into themes." : "The 19:00 sweep will file stale tabs here."
     }</div>`;
@@ -304,6 +306,16 @@ function renderThemes() {
     ${unranked.length ? `
       <div class="zone-label">Unranked · drag up to prioritize</div>
       <ol class="theme-list" id="unranked">${unranked.map((t, i) => themeCard(t, i)).join("")}</ol>` : ""}
+    ${later.length ? `
+      <div class="zone-label">Later · ${later.length}</div>
+      <ul class="later-list">${later.map((th) => `
+        <li data-theme-id="${th.id}">
+          <button class="later-row" data-action="unlater" title="Bring it back to its place in your priorities">
+            <span class="later-name">${esc(th.name)}</span>
+            <span class="theme-meta">${th.tabs.filter((t) => t.status === "open").length} open</span>
+            <span class="later-back">Bring back ↑</span>
+          </button>
+        </li>`).join("")}</ul>` : ""}
     ${S.board.pending_sort ? `<p class="footnote">${S.board.pending_sort} tabs waiting to be sorted.</p>` : ""}`;
 }
 
@@ -496,6 +508,12 @@ const actions = {
   "snooze-tab": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until }))),
   "wake-tab": (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until: null })),
   "snooze-theme": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/themes/${themeId(el)}/snooze`, { until }))),
+  later: (el) => {
+    const th = themeById(themeId(el));
+    act(() => api("POST", `/api/themes/${th.id}/later`, { on: true }));
+    toast(`“${th.name}” moved to Later. Bring it back from the bottom of the list.`);
+  },
+  unlater: (el) => act(() => api("POST", `/api/themes/${themeId(el)}/later`, { on: false })),
   "wake-theme": (el) => act(() => api("POST", `/api/themes/${themeId(el)}/snooze`, { until: null })),
   "toggle-done": (el) => {
     const id = themeId(el);
@@ -761,7 +779,7 @@ document.addEventListener("drop", (e) => {
     const src = d.el.closest("ul.tabs").dataset.themeName;
     act(() => api("POST", `/api/tabs/${d.id}/move`, { theme: dest === src ? null : dest, index: d.index }));
   } else {
-    const all = [...S.board.themes, ...S.board.snoozed_themes];
+    const all = [...S.board.themes, ...S.board.snoozed_themes, ...S.board.later_themes];
     const visibleRanked = S.board.themes.filter((t) => t.ranked).map((t) => t.id);
     const ids = rankedOrder(all, visibleRanked, d.id, d.index, d.list.id === "ranked");
     act(() => api("POST", "/api/themes/reorder", { ids }));

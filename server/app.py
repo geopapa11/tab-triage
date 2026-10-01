@@ -199,6 +199,8 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
             store.mark_theme_done(tid)
         elif action == "delete":
             store.delete_theme(tid)
+        elif action == "later":
+            store.set_later(tid, bool(body.get("on", True)))
         elif action == "dissolve":
             store.dissolve_theme(tid)
             sorter.request()
@@ -271,7 +273,7 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|snooze|move|opened)", tab_action),
         ("POST", r"/api/tabs/bulk", post_bulk),
         ("POST", r"/api/themes/reorder", post_reorder_themes),
-        ("POST", r"/api/themes/(?P<id>\d+)/(?P<action>rename|merge|snooze|done|delete|dissolve)", theme_action),
+        ("POST", r"/api/themes/(?P<id>\d+)/(?P<action>rename|merge|snooze|done|delete|dissolve|later)", theme_action),
         ("POST", r"/api/opened", post_opened),
         ("POST", r"/api/resort", post_resort),
         ("POST", r"/api/merge-suggestions/dismiss", post_dismiss_merge),

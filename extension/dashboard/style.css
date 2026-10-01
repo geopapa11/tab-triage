@@ -198,6 +198,20 @@ a { color: inherit; }
 }
 .merge-hint span { flex: 1; }
 
+/* --- later --------------------------------------------------------------------------- */
+
+.later-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.later-row {
+  display: flex; align-items: baseline; gap: 12px; width: 100%;
+  padding: 10px 16px; text-align: left; cursor: pointer;
+  background: transparent; border: 1px dashed var(--rule-strong); border-radius: var(--radius);
+  transition: background .15s, border-color .15s;
+}
+.later-row:hover { background: var(--card); border-style: solid; }
+.later-name { font: 600 15px var(--serif); color: var(--ink-2); }
+.later-back { margin-left: auto; font: 11px var(--mono); color: var(--muted); opacity: 0; transition: opacity .15s; }
+.later-row:hover .later-back { opacity: 1; }
+
 /* --- tab rows ------------------------------------------------------------------ */
 
 .tabs { list-style: none; margin: 8px 0 0; padding: 0; }

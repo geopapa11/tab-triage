@@ -35,6 +35,8 @@ Never closed: pinned, active, playing audio, half-filled forms, and the keep-ope
 - 19:00 sweep (or **Sweep now**); catches up when Chrome next opens if the laptop slept.
 - Tick a tab when done → greyed at the bottom of its theme, listed under **Completed** for 45 days.
 - Snooze tabs or themes; they come back marked "back".
+- **Later** collapses a theme into a one-line list at the bottom; click it to bring it back to
+  its old place in your priorities.
 - **Open N** opens a theme's top 6 tabs in a new window.
 - **Merge windows** gathers every tab into one work window (where the dashboard is) plus one
   inbox window for keep-open tabs. Tab groups move whole; nothing is closed.

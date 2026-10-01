@@ -297,3 +297,13 @@ def test_dissolve_resorts_the_tabs(env):
     env["store"].rename_theme(tid, "Bad grouping")
     call(env, "POST", f"/api/themes/{tid}/dissolve", {})
     assert themes(env) == {"Sorted": ["https://b", "https://a"]}  # fake sorter re-filed them
+
+
+def test_later_round_trip(env):
+    sweep(env, [tab("https://a")])
+    tid = call(env, "GET", "/api/board")[1]["themes"][0]["id"]
+    call(env, "POST", f"/api/themes/{tid}/later", {"on": True})
+    board = call(env, "GET", "/api/board")[1]
+    assert (board["themes"], [t["name"] for t in board["later_themes"]]) == ([], ["Sorted"])
+    call(env, "POST", f"/api/themes/{tid}/later", {"on": False})
+    assert list(themes(env)) == ["Sorted"]

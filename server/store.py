@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS themes (
     created_at REAL NOT NULL,
     touched_at REAL NOT NULL,
     snoozed_until REAL,
-    back INTEGER NOT NULL DEFAULT 0
+    back INTEGER NOT NULL DEFAULT 0,
+    later INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS tabs (
     id INTEGER PRIMARY KEY,
@@ -73,7 +74,14 @@ class Store:
         self._db.row_factory = sqlite3.Row
         self._db.execute("PRAGMA foreign_keys = ON")
         self._db.executescript(SCHEMA)
+        self._migrate()
         self._lock = threading.RLock()
+
+    def _migrate(self):
+        theme_cols = {r[1] for r in self._db.execute("PRAGMA table_info(themes)")}
+        if "later" not in theme_cols:
+            with self._db:
+                self._db.execute("ALTER TABLE themes ADD COLUMN later INTEGER NOT NULL DEFAULT 0")
 
     # --- helpers ----------------------------------------------------------------
 
@@ -284,6 +292,13 @@ class Store:
                 "UPDATE themes SET snoozed_until = ? WHERE id = ?", (until, theme_id)
             )
 
+    def set_later(self, theme_id, on):
+        """Park a theme in the collapsed Later list; its rank is kept for when it comes back."""
+        with self._lock, self._db:
+            self._db.execute("UPDATE themes SET later = ? WHERE id = ?", (int(bool(on)), theme_id))
+            if not on:
+                self._touch(theme_id)
+
     def reorder_themes(self, theme_ids):
         """`theme_ids` is the complete ranked list; any theme left out becomes unranked."""
         with self._lock, self._db:
@@ -383,6 +398,7 @@ class Store:
             "stale": self.now() - th["touched_at"] >= STALE_AFTER,
             "back": bool(th["back"]),
             "snoozed_until": th["snoozed_until"],
+            "later": bool(th["later"]),
             "tabs": tabs,
         }
 
@@ -395,7 +411,7 @@ class Store:
     def board(self):
         with self._lock, self._db:
             self._wake()
-            themes, snoozed_themes = [], []
+            themes, snoozed_themes, later_themes = [], [], []
             for th in self._ordered_themes():
                 open_rows = self._q(
                     "SELECT * FROM tabs WHERE theme_id = ? AND status = 'open' "
@@ -410,7 +426,8 @@ class Store:
                     th["id"],
                 )
                 tabs = [self._tab_dict(r) for r in [*open_rows, *done_rows]]
-                target = snoozed_themes if th["snoozed_until"] is not None else themes
+                target = (snoozed_themes if th["snoozed_until"] is not None
+                          else later_themes if th["later"] else themes)
                 target.append(self._theme_dict(th, tabs))
             snoozed_tabs = [
                 {**self._tab_dict(r), "theme": r["theme_name"]}
@@ -425,6 +442,7 @@ class Store:
         return {
             "themes": themes,
             "snoozed_themes": snoozed_themes,
+            "later_themes": later_themes,
             "snoozed_tabs": snoozed_tabs,
             "pending_sort": n_pending,
         }

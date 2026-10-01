@@ -367,3 +367,40 @@ def test_dissolve_keeps_completed_history(store):
     store.dissolve_theme(board_theme(store.board(), "Bad grouping")["id"])
     assert [(t["title"], t["theme"]) for t in store.completed()] == [("https://a", "Unsorted")]
     assert [t["id"] for t in store.pending_sort()] == [b]
+
+
+# --- later -------------------------------------------------------------------------
+
+def test_later_theme_leaves_main_list_and_comes_back_in_its_rank(store):
+    add_to_theme(store, "A", "https://a")
+    add_to_theme(store, "B", "https://b")
+    add_to_theme(store, "C", "https://c")
+    ids = {t["name"]: t["id"] for t in store.board()["themes"]}
+    store.reorder_themes([ids["A"], ids["B"], ids["C"]])
+    store.set_later(ids["B"], True)
+    board = store.board()
+    assert [t["name"] for t in board["themes"]] == ["A", "C"]
+    assert [(t["name"], len(t["tabs"])) for t in board["later_themes"]] == [("B", 1)]
+    store.set_later(ids["B"], False)
+    assert [(t["name"], t["position"]) for t in store.board()["themes"]] == [("A", 0), ("B", 1), ("C", 2)]
+
+
+def test_later_theme_still_receives_sorted_tabs(store):
+    add_to_theme(store, "B", "https://b")
+    store.set_later(board_theme(store.board(), "B")["id"], True)
+    assert store.sortable_theme_names() == ["B"]
+
+
+def test_existing_database_gains_later_column(tmp_path, clock):
+    import sqlite3
+    db = tmp_path / "old.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE themes (id INTEGER PRIMARY KEY, name TEXT NOT NULL UNIQUE, position INTEGER, "
+                "suggested_position INTEGER, created_at REAL NOT NULL, touched_at REAL NOT NULL, "
+                "snoozed_until REAL, back INTEGER NOT NULL DEFAULT 0)")
+    con.execute("INSERT INTO themes (name, created_at, touched_at) VALUES ('Old', 0, 0)")
+    con.commit()
+    con.close()
+    s = Store(db, now=clock)
+    s.set_later(s.create_theme("Old"), True)
+    assert s.theme_names() == ["Old"]
