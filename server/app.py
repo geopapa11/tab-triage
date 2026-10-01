@@ -23,6 +23,7 @@ DEFAULT_SETTINGS = {
     "model": "sonnet",
     "fallback_model": "haiku",
     "memory_cap_mb": 1536,
+    "max_themes": 15,
     "keep_open": [
         "https://mail.google.com/mail/u/*/#inbox",
         "https://calendar.google.com/*",

@@ -271,3 +271,14 @@ def test_missing_init_event_is_rejected(home, runner):
     with pytest.raises(SortError) as e:
         runner.run("p", schema={}, model="sonnet", fallback="haiku")
     assert e.value.kind == "auth"
+
+
+def test_theme_cap_comes_from_settings(home, runner, store):
+    for i in range(15):
+        (t,) = store.capture([{"url": f"https://seed/{i}", "title": f"s{i}"}])
+        store.assign(t, f"T{i}")
+    ids = store.capture([{"url": f"https://new/{i}", "title": f"n{i}"} for i in range(2)])
+    set_output(home, {"assignments": [{"id": i, "theme": "Recipes to try"} for i in ids]})
+    store.set_setting("max_themes", 16)
+    sort_pending(store, runner)
+    assert open_by_theme(store)["Recipes to try"] == ["n0", "n1"]

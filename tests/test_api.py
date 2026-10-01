@@ -181,6 +181,7 @@ def test_settings_only_accept_known_keys(env):
     assert call(env, "PATCH", "/api/settings", {"model": "opus"})[0] == 200
     assert call(env, "GET", "/api/state")[1]["settings"]["model"] == "opus"
     assert call(env, "PATCH", "/api/settings", {"evil": 1})[0] == 400
+    assert call(env, "PATCH", "/api/settings", {"max_themes": 30})[1]["max_themes"] == 30
 
 
 def test_memory_reports_cap(env):

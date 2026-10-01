@@ -421,6 +421,9 @@ function renderSettings() {
     <label for="set-cap">Chrome memory cap (MB)</label>
     <input id="set-cap" type="number" min="512" step="128" value="${s.memory_cap_mb}">
     <p class="help">Above this, least-recently-used tabs are unloaded (not closed), keep-open tabs last.</p>
+    <label for="set-themes">Maximum themes</label>
+    <input id="set-themes" type="number" min="5" max="60" value="${s.max_themes}">
+    <p class="help">New themes stop being created at this count; extra tabs go to Unsorted. Merge themes to make room.</p>
     <label for="set-keep">Keep open — never closed</label>
     <textarea id="set-keep">${esc(s.keep_open.join("\n"))}</textarea>
     <p class="help">One URL pattern per line; <code>*</code> matches anything. Pinned tabs are always kept.</p>
@@ -556,6 +559,7 @@ const actions = {
     await api("PATCH", "/api/settings", {
       model: $("set-model").value,
       memory_cap_mb: Number($("set-cap").value) || 1536,
+      max_themes: Number($("set-themes").value) || 15,
       keep_open: lines("set-keep"),
       never_read: lines("set-never"),
     });

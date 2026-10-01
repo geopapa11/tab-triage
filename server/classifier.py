@@ -248,6 +248,7 @@ def sort_pending(store, runner, include_unsorted=False, batch_size=BATCH_SIZE):
     if not tabs:
         return
     model = store.get_setting("model", "sonnet")
+    max_themes = store.get_setting("max_themes", MAX_THEMES)
     fallback = store.get_setting("fallback_model", "haiku")
     batches = [tabs[i:i + batch_size] for i in range(0, len(tabs), batch_size)]
     for n, batch in enumerate(batches):
@@ -261,7 +262,7 @@ def sort_pending(store, runner, include_unsorted=False, batch_size=BATCH_SIZE):
                     store.assign(t["id"], UNSORTED)
             store.set_setting("sort_error", {"kind": e.kind, "message": str(e), "at": time.time()})
             return
-        for tid, theme in apply_rules(batch, output, list(active)).items():
+        for tid, theme in apply_rules(batch, output, list(active), max_themes=max_themes).items():
             store.assign(tid, theme)
         store.set_setting("last_model", model_used)
         existing = set(store.active_theme_names())
