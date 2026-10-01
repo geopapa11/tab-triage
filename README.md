@@ -36,7 +36,7 @@ Never closed: pinned, active, playing audio, half-filled forms, and the keep-ope
 - Tick a tab when done → greyed at the bottom of its theme, listed under **Completed** for 45 days.
 - Snooze tabs or themes; they come back marked "back".
 - **Open N** opens a theme's top 6 tabs in a new window.
-- **Tidy windows** gathers every tab into one work window (where the dashboard is) plus one
+- **Merge windows** gathers every tab into one work window (where the dashboard is) plus one
   inbox window for keep-open tabs. Tab groups move whole; nothing is closed.
 - Click a tab row's empty space to select it; the bar offers Done / Move to / Snooze / Delete.
   A theme's ⋯ menu has Mark all done, Dissolve (re-sort its tabs) and Delete (gone for good).

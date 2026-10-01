@@ -154,7 +154,7 @@ function renderInstruments() {
       <div class="value">${S.liveTabs}</div>
       <div class="meter ${S.liveTabs > LIVE_TAB_BUDGET ? "over" : ""}"><i style="width:${tabPct}%"></i></div>
     </div>
-    <div class="gauge" title="Normal Chrome windows. Tidy windows gathers tabs into a work window and an inbox window.">
+    <div class="gauge" title="Normal Chrome windows. Merge windows gathers tabs into a work window and an inbox window.">
       <div class="label"><span>Windows</span><span>budget 2</span></div>
       <div class="value">${S.windows}</div>
       <div class="meter ${S.windows > 2 ? "over" : ""}"><i style="width:${Math.min(100, (S.windows / 2) * 100)}%"></i></div>
@@ -474,7 +474,7 @@ const actions = {
     el.disabled = true;
     await act(async () => {
       const r = await message("tidyWindows");
-      toast(`Moved ${r.moved} tabs or groups — ${r.windows} window${r.windows === 1 ? "" : "s"} now${r.failed ? ` (${r.failed} couldn't move)` : ""}.`);
+      toast(`Merged into ${r.windows} window${r.windows === 1 ? "" : "s"} (moved ${r.moved} tabs or groups${r.failed ? `, ${r.failed} couldn't move` : ""}).`);
     });
   },
   approve: async () => {

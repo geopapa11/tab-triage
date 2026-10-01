@@ -246,7 +246,7 @@ async function guardMemory() {
   return { ...mem, unloaded };
 }
 
-// --- tidy windows: gather everything into a work window + an inbox window --------
+// --- merge windows: gather everything into a work window + an inbox window --------
 
 async function tidyWindows() {
   const [windows, state] = await Promise.all([
