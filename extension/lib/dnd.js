@@ -25,3 +25,12 @@ export function nudgeIndex(visibleRanked, id, direction) {
   if (direction === "top" || direction === "up") return i === 0 ? null : direction === "top" ? 0 : i - 1;
   return i === visibleRanked.length - 1 ? null : i + 1;
 }
+
+// Pixels per animation frame to scroll while a drag hovers within `zone` px of the top or
+// bottom of the viewport: 0 in the middle, ramping to ±max at (or beyond) the edge.
+export function edgeScrollSpeed(y, viewportHeight, zone = 110, max = 28) {
+  const ramp = (distance) => Math.round(max * Math.min(1, Math.max(0, (zone - distance) / zone)));
+  if (y < zone) return -ramp(y) || 0;
+  if (y > viewportHeight - zone) return ramp(viewportHeight - y);
+  return 0;
+}

@@ -2,7 +2,7 @@
 
 import { api } from "../lib/api.js";
 import { snoozePresets, ago, dayLabel } from "../lib/time.js";
-import { dropIndex, rankedOrder, nudgeIndex } from "../lib/dnd.js";
+import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
 import { rangeIds } from "../lib/select.js";
@@ -756,7 +756,7 @@ function dropTarget(e) {
   }
   if (S.drag?.type === "theme") {
     // Letting go on a section label counts too: it lands at the top of that section.
-    const label = e.target.closest(".zone-label[data-zone]");
+    const label = e.target.closest("[data-zone]"); // a section label, or the fixed "make it #1" bar
     const list = label ? $(label.dataset.zone) : e.target.closest(".theme-list");
     if (!list) return null;
     const rows = [...list.querySelectorAll(":scope > .theme")].filter((r) => Number(r.dataset.themeId) !== S.drag.id);
@@ -779,7 +779,11 @@ document.addEventListener("dragstart", (e) => {
     S.drag.chip = chip;
     // Collapse cards to their headers so the whole list fits on screen. Deferred: changing the
     // layout inside dragstart itself makes Chrome cancel the drag.
-    setTimeout(() => document.body.classList.add("reordering"), 0);
+    setTimeout(() => {
+      const before = card.getBoundingClientRect().top;
+      document.body.classList.add("reordering");
+      window.scrollBy(0, card.getBoundingClientRect().top - before); // keep it under the cursor
+    }, 0);
   } else if (row) {
     S.drag = { type: "tab", id: Number(row.dataset.tabId), el: row };
   } else {
@@ -790,7 +794,20 @@ document.addEventListener("dragstart", (e) => {
   requestAnimationFrame(() => S.drag?.el.classList.add("dragging"));
 });
 
+function edgeScrollLoop() {
+  if (!S.drag) return;
+  if (S.drag.speed) window.scrollBy(0, S.drag.speed);
+  requestAnimationFrame(edgeScrollLoop);
+}
+
 document.addEventListener("dragover", (e) => {
+  if (S.drag) {
+    S.drag.speed = edgeScrollSpeed(e.clientY, innerHeight);
+    if (!S.drag.scrolling) {
+      S.drag.scrolling = true;
+      requestAnimationFrame(edgeScrollLoop);
+    }
+  }
   const target = dropTarget(e);
   if (!target) return;
   e.preventDefault();
@@ -814,7 +831,10 @@ document.addEventListener("drop", (e) => {
     const all = [...S.board.themes, ...S.board.snoozed_themes, ...S.board.later_themes];
     const visibleRanked = S.board.themes.filter((t) => t.ranked).map((t) => t.id);
     const ids = rankedOrder(all, visibleRanked, d.id, d.index, d.list.id === "ranked");
-    act(() => api("POST", "/api/themes/reorder", { ids }));
+    act(() => api("POST", "/api/themes/reorder", { ids })).then(() => {
+      document.querySelector(`.theme[data-theme-id="${d.id}"]`)?.scrollIntoView({ block: "start" });
+      window.scrollBy(0, -16); // a little air above the card's header
+    });
   }
 });
 

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { dropIndex, rankedOrder, nudgeIndex } from "./dnd.js";
+import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "./dnd.js";
 
 test("drop index counts rows whose midpoint is above the pointer", () => {
   const mids = [10, 30, 50];
@@ -53,4 +53,21 @@ test("an unranked theme moving up joins the end of the priorities", () => {
 test("composes with rankedOrder", () => {
   const all = [{ id: 1, position: 0 }, { id: 2, position: 1 }, { id: 3, position: 2 }];
   assert.deepEqual(rankedOrder(all, [1, 2, 3], 3, nudgeIndex([1, 2, 3], 3, "up"), true), [1, 3, 2]);
+});
+
+// edgeScrollSpeed: px per frame to scroll while dragging near the viewport's top/bottom edge.
+test("no scrolling in the middle of the viewport", () => {
+  assert.equal(edgeScrollSpeed(400, 800), 0);
+});
+
+test("scrolls up near the top and down near the bottom, faster closer to the edge", () => {
+  assert.ok(edgeScrollSpeed(60, 800) < 0);
+  assert.ok(edgeScrollSpeed(10, 800) < edgeScrollSpeed(60, 800));
+  assert.ok(edgeScrollSpeed(740, 800) > 0);
+  assert.ok(edgeScrollSpeed(795, 800) > edgeScrollSpeed(740, 800));
+});
+
+test("speed is capped", () => {
+  assert.equal(edgeScrollSpeed(-50, 800), -28);
+  assert.equal(edgeScrollSpeed(900, 800), 28);
 });

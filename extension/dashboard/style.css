@@ -208,6 +208,13 @@ a { color: inherit; }
 .reordering .theme .rank b { font-size: 20px; }
 .reordering .theme-body { padding-block: 8px; }
 .reordering .zone-label[data-zone] { color: var(--ink); }
+.top-drop {
+  display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 40;
+  padding: 16px; text-align: center; font: 600 14px var(--sans);
+  background: var(--ink); color: var(--paper);
+  border-bottom: 3px solid var(--go);
+}
+.reordering .top-drop { display: block; }
 .drag-chip {
   position: fixed; top: -100px; left: -100px; padding: 6px 12px; border-radius: 8px;
   background: var(--ink); color: var(--paper); font: 600 13px var(--sans); white-space: nowrap;
