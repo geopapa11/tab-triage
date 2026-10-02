@@ -287,8 +287,8 @@ def test_theme_done_and_delete(env):
     call(env, "POST", f"/api/themes/{tid}/done", {})
     assert len(call(env, "GET", "/api/completed")[1]["tabs"]) == 2
     call(env, "POST", f"/api/themes/{tid}/delete", {})
-    assert call(env, "GET", "/api/completed")[1]["tabs"] == []
-    assert call(env, "GET", "/api/state")[1]["theme_names"] == []
+    assert len(call(env, "GET", "/api/completed")[1]["tabs"]) == 2  # history survives the delete
+    assert themes(env) == {}
 
 
 def test_dissolve_resorts_the_tabs(env):

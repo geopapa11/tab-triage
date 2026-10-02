@@ -587,7 +587,7 @@ const actions = {
       <button data-choice="rename">Rename</button>
       <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
       <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
-      <button data-choice="delete" class="danger">Delete theme <span class="hint">gone for good</span></button>
+      <button data-choice="delete" class="danger">Delete theme <span class="hint">open tabs gone for good</span></button>
       ${others.length ? "<hr>" : ""}
       ${others.map((t) => `<button data-choice="merge:${t.id}">Merge into <span class="hint">${esc(t.name)}</span></button>`).join("")}`,
     (choice) => {
@@ -605,7 +605,8 @@ const actions = {
         if (!confirm(`Dissolve “${th.name}”? Its ${open} tabs go back to Claude to be sorted again, and Claude won't recreate this theme.`)) return;
         act(() => api("POST", `/api/themes/${id}/dissolve`, {}));
       } else if (choice === "delete") {
-        if (!confirm(`Delete “${th.name}” and all ${th.tabs.length} of its tabs for good? This can't be undone. (Tabs still open in Chrome stay open.)`)) return;
+        const done = th.tabs.length - open;
+        if (!confirm(`Delete “${th.name}” and its ${open} open tabs for good? This can't be undone.${done ? ` Its ${done} completed tabs keep their history in Completed.` : ""} (Tabs still open in Chrome stay open.)`)) return;
         act(() => api("POST", `/api/themes/${id}/delete`, {}));
       } else act(() => api("POST", `/api/themes/${id}/merge`, { into: Number(choice.split(":")[1]) }));
     });

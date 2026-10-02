@@ -343,6 +343,16 @@ def test_delete_theme_removes_its_tabs_and_itself(store):
     assert [t["title"] for t in board_theme(store.board(), "Keep")["tabs"]] == ["https://c"]
 
 
+def test_delete_theme_keeps_completed_history(store):
+    a, b = add_to_theme(store, "Gone", "https://a", "https://b")
+    add_to_theme(store, "Keep", "https://c")
+    store.check(a)
+    store.delete_theme(board_theme(store.board(), "Gone")["id"])
+    assert [t["name"] for t in store.board()["themes"]] == ["Keep"]
+    assert [(t["title"], t["theme"]) for t in store.completed()] == [("https://a", "Gone")]
+    assert store.sortable_theme_names() == ["Keep"]  # the AI is not offered the deleted theme
+
+
 def test_mark_theme_done_ticks_every_open_tab(store, clock):
     a, b = add_to_theme(store, "SQL", "https://a", "https://b")
     tid = board_theme(store.board(), "SQL")["id"]

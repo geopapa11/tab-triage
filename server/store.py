@@ -337,9 +337,18 @@ class Store:
                     self._db.execute("DELETE FROM themes WHERE id = ?", (th,))
 
     def delete_theme(self, theme_id):
+        """Delete a theme's open tabs. Ticked tabs keep their Completed history (and the theme's
+        name with it); the now-hidden theme row goes when purge removes the last of them."""
         with self._lock, self._db:
-            self._db.execute("DELETE FROM tabs WHERE theme_id = ?", (theme_id,))
-            self._db.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
+            self._db.execute("DELETE FROM tabs WHERE theme_id = ? AND status = 'open'", (theme_id,))
+            if self._one("SELECT 1 FROM tabs WHERE theme_id = ?", theme_id):
+                self._db.execute(
+                    "UPDATE themes SET position = NULL, later = 0, snoozed_until = NULL, back = 0 "
+                    "WHERE id = ?",
+                    (theme_id,),
+                )
+            else:
+                self._db.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
 
     def mark_theme_done(self, theme_id):
         with self._lock, self._db:
