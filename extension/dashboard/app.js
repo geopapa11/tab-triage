@@ -270,6 +270,7 @@ function themeCard(th, i) {
           ${badges}
           <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
           <div class="theme-tools">
+            ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Ask Claude to sort these tabs again">Re-sort</button>` : ""}
             <button class="tool" data-action="open-theme">Open ${Math.min(6, open.length)}</button>
             <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
             <button class="tool" data-action="snooze-theme">Snooze</button>
