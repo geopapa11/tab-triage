@@ -477,19 +477,30 @@ const actions = {
   "sweep-now": async (el) => {
     el.disabled = true;
     toast("Sweeping…");
-    await act(async () => {
-      const r = await message("sweepNow");
-      toast(r.closed
-        ? `Saved and closed ${r.saved} tabs, dropped ${r.dropped}.`
-        : `Saved ${r.saved} tabs${r.dropped ? `, ${r.dropped} to drop` : ""}. Nothing closed yet.`);
-    });
+    try {
+      await act(async () => {
+        const r = await message("sweepNow");
+        const none = !r.saved && !r.dropped;
+        toast(none
+          ? "Nothing to sweep: no tab has gone 96 hours untouched."
+          : r.closed
+            ? `Saved and closed ${r.saved} tabs, dropped ${r.dropped}.`
+            : `Saved ${r.saved} tabs${r.dropped ? `, ${r.dropped} to drop` : ""}. Nothing closed yet.`);
+      });
+    } finally {
+      el.disabled = false;
+    }
   },
   tidy: async (el) => {
     el.disabled = true;
-    await act(async () => {
-      const r = await message("tidyWindows");
-      toast(`Merged into ${r.windows} window${r.windows === 1 ? "" : "s"} (moved ${r.moved} tabs or groups${r.failed ? `, ${r.failed} couldn't move` : ""}).`);
-    });
+    try {
+      await act(async () => {
+        const r = await message("tidyWindows");
+        toast(`Merged into ${r.windows} window${r.windows === 1 ? "" : "s"} (moved ${r.moved} tabs or groups${r.failed ? `, ${r.failed} couldn't move` : ""}).`);
+      });
+    } finally {
+      el.disabled = false;
+    }
   },
   approve: async () => {
     const n = S.pending + (S.lastSweep?.dropped ?? 0);
