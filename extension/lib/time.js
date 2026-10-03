@@ -36,3 +36,17 @@ export function dayLabel(seconds, now) {
   const d = new Date(seconds * 1000);
   return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
 }
+
+const pad = (n) => String(n).padStart(2, "0");
+
+// YYYY-MM-DD in local time (Date.toISOString is UTC, which is already "tomorrow" in the evening).
+export function localISODate(ms) {
+  const d = new Date(ms);
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Local YYYY-MM-DD-HHMM, for export file names.
+export function fileStamp(ms) {
+  const d = new Date(ms);
+  return `${localISODate(ms)}-${pad(d.getHours())}${pad(d.getMinutes())}`;
+}

@@ -114,7 +114,7 @@ many tabs are loaded, and how many windows are open.
 | Finish a whole theme | **⋯ → Mark all done**. Reversible for 45 days. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
 | Remove a theme | **⋯ → Delete theme**. Its open tabs are deleted for good; tabs you had already ticked keep their history in Completed. |
-| Reduce the number of windows | **Merge windows** moves every tab into the dashboard's window, and keep-open tabs (inboxes) into a second one. Nothing is closed. |
+| Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
 A theme nobody has touched for 7 days shows **Stale — drop it?**; clicking it marks all its tabs

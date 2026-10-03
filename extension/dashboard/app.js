@@ -1,7 +1,7 @@
 // Tab Triage dashboard. Server data in, DOM out; every action is an API call followed by a refresh.
 
 import { api } from "../lib/api.js";
-import { snoozePresets, ago, dayLabel } from "../lib/time.js";
+import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/time.js";
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
@@ -419,7 +419,7 @@ function popover(anchor, html, onClick) {
 function snoozeMenu(anchor, apply) {
   const p = snoozePresets(Date.now());
   const fmt = (ms) => `${dayLabel(ms / 1000, Date.now())} 08:00`;
-  const tomorrow = new Date(Date.now() + DAY_S * 1000).toISOString().slice(0, 10);
+  const tomorrow = localISODate(Date.now() + DAY_S * 1000);
   popover(anchor, `
     <button data-choice="${p.tomorrow}">Tomorrow <span class="hint">${fmt(p.tomorrow)}</span></button>
     <button data-choice="${p.nextMonday}">Next Monday <span class="hint">${fmt(p.nextMonday)}</span></button>
@@ -512,7 +512,9 @@ const actions = {
     try {
       await act(async () => {
         const r = await message("tidyWindows");
-        toast(`Merged into ${r.windows} window${r.windows === 1 ? "" : "s"} (moved ${r.moved} tabs or groups${r.failed ? `, ${r.failed} couldn't move` : ""}).`);
+        toast(r.moved || r.failed
+          ? `Merged into ${r.windows} window${r.windows === 1 ? "" : "s"} (moved ${r.moved} tabs or groups${r.failed ? `, ${r.failed} couldn't move` : ""}).`
+          : `Nothing to merge: you have ${r.windows} window${r.windows === 1 ? "" : "s"}, within the budget of 2.`);
       });
     } finally {
       el.disabled = false;
@@ -638,7 +640,7 @@ const actions = {
     const text = await api("GET", "/api/export.md");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(new Blob([text], { type: "text/markdown" }));
-    a.download = `tab-triage-${new Date().toISOString().slice(0, 10)}.md`;
+    a.download = `tab-triage-${fileStamp(Date.now())}.md`;
     a.click();
     URL.revokeObjectURL(a.href);
   },

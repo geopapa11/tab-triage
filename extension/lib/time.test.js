@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { snoozePresets, ago, dayLabel } from "./time.js";
+import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "./time.js";
 
 const at = (y, mo, d, h = 0, mi = 0) => new Date(y, mo - 1, d, h, mi).getTime();
 
@@ -36,4 +36,10 @@ test("day labels for completed grouping", () => {
   assert.equal(dayLabel(at(2026, 9, 30, 1) / 1000, now), "Today");
   assert.equal(dayLabel(at(2026, 9, 29, 23) / 1000, now), "Yesterday");
   assert.equal(dayLabel(at(2026, 9, 28, 10) / 1000, now), "Mon 28 Sep");
+});
+
+test("local dates and file stamps use the local day, not UTC", () => {
+  const lateEvening = new Date(2026, 9, 2, 23, 30).getTime(); // already Oct 3 in UTC west of Greenwich
+  assert.equal(localISODate(lateEvening), "2026-10-02");
+  assert.equal(fileStamp(lateEvening), "2026-10-02-2330");
 });
