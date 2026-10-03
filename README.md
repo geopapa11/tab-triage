@@ -107,16 +107,16 @@ many tabs are loaded, and how many windows are open.
 | Add a page you're on | Right-click the page (or the Tab Triage toolbar icon) → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, or **Let Claude choose**. |
 | Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
 | Mark a tab done | Tick its box. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. Untick it to bring it back. |
-| Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / up / down**. |
-| Reorder or move tabs | Drag a tab within its theme or onto another theme. |
+| Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Make it #1 / Move up / Move down**. |
+| Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
 | Act on several tabs | Click the empty space in a tab's row to select it; shift-click selects a range. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |
-| Combine themes | **⋯ → Merge into…** |
+| Combine themes | **⋯ → Merge into…**, then pick the theme from the searchable list. |
 | Finish a whole theme | **⋯ → Mark all done**. Reversible for 45 days. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
-| Remove a theme | **⋯ → Delete theme**. Its open tabs are deleted for good; tabs you had already ticked keep their history in Completed. |
+| Remove a theme | **Remove** on the theme card. All its tabs leave the list (and close in Chrome if open); tabs you had already ticked keep their history in Completed. **Undo** in the message brings everything back. |
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 

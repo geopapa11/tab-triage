@@ -5,7 +5,7 @@ import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/ti
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
-import { rangeIds } from "../lib/select.js";
+import { rangeIds, pickerThemes, filterThemes } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
 
 const DAY_S = 86400;
@@ -280,6 +280,7 @@ function themeCard(th, i) {
             <button class="tool" data-action="add-link" title="Paste a link to add it to this theme">+ Add link</button>
             <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
             <button class="tool" data-action="snooze-theme">Snooze</button>
+            ${th.name === "Unsorted" ? "" : `<button class="tool warn" data-action="remove-theme" title="Remove every tab in this theme (not useful after all). Undo is offered.">Remove</button>`}
             <button class="tool" data-action="theme-menu" aria-label="More">⋯</button>
           </div>
         </div>
@@ -408,7 +409,7 @@ function toast(text, action = null) {
 
 // Remove = not useful after all: off the list (no Completed history), and closed in Chrome.
 // Undo restores the list entries and reopens the Chrome tabs in the background.
-async function removeTabs(ids) {
+async function removeTabs(ids, what = null) {
   const byId = new Map(
     [...S.board.themes, ...S.board.later_themes, ...S.board.snoozed_themes]
       .flatMap((th) => th.tabs).concat(S.board.snoozed_tabs).map((t) => [t.id, t]),
@@ -417,7 +418,7 @@ async function removeTabs(ids) {
   await api("POST", "/api/tabs/bulk", { ids, action: "remove" });
   const open = (await chrome.tabs.query({})).filter((t) => urls.has(t.url) && !t.url.startsWith(SELF));
   if (open.length) await chrome.tabs.remove(open.map((t) => t.id));
-  const one = ids.length === 1 ? `“${byId.get(ids[0])?.title ?? "tab"}”` : `${ids.length} tabs`;
+  const one = what ?? (ids.length === 1 ? `“${byId.get(ids[0])?.title ?? "tab"}”` : `${ids.length} tabs`);
   toast(`Removed ${one}${open.length ? ` and closed ${open.length} in Chrome` : ""}.`, {
     label: "Undo",
     run: () => act(async () => {
@@ -426,6 +427,38 @@ async function removeTabs(ids) {
     }),
   });
   await refresh({ animate: true });
+}
+
+// A searchable list of themes: used by "Move to…" and "Merge into…". Includes Later and snoozed
+// themes so parked themes can still receive tabs.
+function themePicker(anchor, { exclude = null, allowNew = false } = {}, onPick) {
+  const themes = pickerThemes(S.board, exclude);
+  popover(anchor, `
+    <input type="search" class="picker-filter" placeholder="Find a theme…" aria-label="Find a theme">
+    <div class="picker-list">${themes.map((t) => `
+      <button data-choice="${t.id}">${esc(t.name)}${t.note ? `<span class="hint">${t.note}</span>` : ""}</button>`).join("")}
+    </div>
+    ${allowNew ? `<hr><button data-choice="__new">New theme…</button>` : ""}`,
+  (choice) => {
+    if (choice === "__new") {
+      const name = prompt("Name of the new theme:")?.trim();
+      if (name) onPick({ id: null, name });
+    } else {
+      const t = themes.find((x) => String(x.id) === choice);
+      if (t) onPick(t);
+    }
+  });
+  const pop = $("popover");
+  const input = pop.querySelector(".picker-filter");
+  const rows = () => [...pop.querySelectorAll(".picker-list button")];
+  input.focus();
+  input.addEventListener("input", () => {
+    const keep = new Set(filterThemes(themes, input.value).map((t) => String(t.id)));
+    for (const b of rows()) b.hidden = !keep.has(b.dataset.choice);
+  });
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") rows().find((b) => !b.hidden)?.click();
+  });
 }
 
 async function pageTitle(url) {
@@ -667,21 +700,18 @@ const actions = {
   },
   "theme-menu": (el) => {
     const id = themeId(el);
-    const others = S.board.themes.filter((t) => t.id !== id);
     const th = themeById(id);
     const open = th.tabs.filter((t) => t.status === "open").length;
     popover(el, `
       ${th.name === "Unsorted" ? "" : `
-      <button data-choice="move:top">Move to top</button>
+      <button data-choice="move:top">Make it #1 <span class="hint">top priority</span></button>
       <button data-choice="move:up">Move up</button>
       <button data-choice="move:down">Move down</button>
       <hr>`}
       <button data-choice="rename">Rename</button>
       <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
       <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
-      <button data-choice="delete" class="danger">Delete theme <span class="hint">open tabs gone for good</span></button>
-      ${others.length ? "<hr>" : ""}
-      ${others.map((t) => `<button data-choice="merge:${t.id}">Merge into <span class="hint">${esc(t.name)}</span></button>`).join("")}`,
+      <button data-choice="merge">Merge into… <span class="hint">pick a theme</span></button>`,
     (choice) => {
       if (choice.startsWith("move:")) {
         const visibleRanked = S.board.themes.filter((t) => t.ranked).map((t) => t.id);
@@ -696,12 +726,25 @@ const actions = {
       } else if (choice === "dissolve") {
         if (!confirm(`Dissolve “${th.name}”? Its ${open} tabs go back to Claude to be sorted again, and Claude won't recreate this theme.`)) return;
         act(() => api("POST", `/api/themes/${id}/dissolve`, {}));
-      } else if (choice === "delete") {
-        const done = th.tabs.length - open;
-        if (!confirm(`Delete “${th.name}” and its ${open} open tabs for good? This can't be undone.${done ? ` Its ${done} completed tabs keep their history in Completed.` : ""} (Tabs still open in Chrome stay open.)`)) return;
-        act(() => api("POST", `/api/themes/${id}/delete`, {}));
-      } else act(() => api("POST", `/api/themes/${id}/merge`, { into: Number(choice.split(":")[1]) }));
+      } else if (choice === "merge") {
+        // Opened after this click finishes, or the "click outside closes the menu" handler
+        // would close the picker straight away.
+        setTimeout(() => themePicker(el, { exclude: id }, (into) => {
+          act(() => api("POST", `/api/themes/${id}/merge`, { into: into.id }));
+          toast(`Merged “${th.name}” into “${into.name}”.`);
+        }), 0);
+      }
     });
+  },
+  "remove-theme": (el) => {
+    const th = themeById(themeId(el));
+    const ids = [
+      ...th.tabs.filter((t) => t.status === "open").map((t) => t.id),
+      ...S.board.snoozed_tabs.filter((t) => t.theme === th.name).map((t) => t.id),
+    ];
+    if (!ids.length) return;
+    removeTabs(ids, `the theme “${th.name}” (${ids.length} tab${ids.length === 1 ? "" : "s"})`)
+      .catch((e) => toast(`Remove failed: ${e.message}`));
   },
   "accept-merge": (el) => {
     const into = S.board.themes.find((t) => t.name === el.closest(".merge-hint").dataset.into);
@@ -827,12 +870,9 @@ document.addEventListener("click", (e) => {
     clearSelection();
     removeTabs(ids).catch((e) => toast(`Remove failed: ${e.message}`));
   } else if (kind === "move") {
-    popover(b, `
-      ${S.board.themes.map((t) => `<button data-choice="${esc(t.name)}">${esc(t.name)}</button>`).join("")}
-      <hr><button data-choice="__new">New theme…</button>`,
-    (choice) => {
-      const theme = choice === "__new" ? prompt("Name of the new theme:")?.trim() : choice;
-      if (theme) bulk("move", { theme });
+    themePicker(b, { allowNew: true }, (t) => {
+      bulk("move", { theme: t.name });
+      toast(`Moved ${n} tab${n === 1 ? "" : "s"} to “${t.name}”.`);
     });
   }
 });
@@ -844,6 +884,8 @@ line.className = "drop-line";
 
 function dropTarget(e) {
   if (S.drag?.type === "tab") {
+    const laterRow = e.target.closest(".later-row");
+    if (laterRow) return { laterRow };
     const list = e.target.closest(".theme")?.querySelector("ul.tabs:not(.done-list)");
     if (!list) return null;
     const rows = [...list.querySelectorAll(":scope > .tab")].filter((r) => Number(r.dataset.tabId) !== S.drag.id);
@@ -904,8 +946,17 @@ document.addEventListener("dragover", (e) => {
     }
   }
   const target = dropTarget(e);
+  for (const r of document.querySelectorAll(".later-row.drop-hover")) r.classList.remove("drop-hover");
+  if (S.drag) S.drag.laterId = null;
   if (!target) return;
   e.preventDefault();
+  if (target.laterRow) {
+    line.remove();
+    target.laterRow.classList.add("drop-hover");
+    S.drag.list = null;
+    S.drag.laterId = Number(target.laterRow.closest("[data-theme-id]").dataset.themeId);
+    return;
+  }
   const i = target.index ?? dropIndex(target.rows.map((r) => { const b = r.getBoundingClientRect(); return b.top + b.height / 2; }), e.clientY);
   S.drag.index = i;
   S.drag.list = target.list;
@@ -915,6 +966,15 @@ document.addEventListener("dragover", (e) => {
 
 document.addEventListener("drop", (e) => {
   const d = S.drag;
+  if (d?.type === "tab" && d.laterId != null) {
+    e.preventDefault();
+    const dest = S.board.later_themes.find((t) => t.id === d.laterId);
+    if (dest) {
+      act(() => api("POST", `/api/tabs/${d.id}/move`, { theme: dest.name, index: 0 }));
+      toast(`Moved to “${dest.name}” (in Later).`);
+    }
+    return;
+  }
   if (!d?.list) return;
   e.preventDefault();
   line.remove();

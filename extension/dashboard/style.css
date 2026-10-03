@@ -298,6 +298,18 @@ a { color: inherit; }
 .empty-state b { display: block; font: 600 22px var(--serif); color: var(--ink); margin-bottom: 6px; }
 .footnote { font: 11px var(--mono); color: var(--muted); margin-top: 14px; }
 
+/* --- theme picker ------------------------------------------------------------------- */
+
+.popover [hidden] { display: none; }
+.picker-filter {
+  width: 100%; min-width: 240px; margin-bottom: 4px; padding: 7px 10px;
+  font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--rule); border-radius: 6px;
+}
+.picker-list { max-height: 320px; overflow-y: auto; }
+.tool.warn:hover { color: var(--signal); border-color: var(--signal); }
+.later-row.drop-hover { background: var(--go-soft); border-style: solid; border-color: var(--go); }
+
 /* --- selection & bulk bar ------------------------------------------------------------ */
 
 .tab { cursor: default; border-radius: 6px; transition: background .12s; }
