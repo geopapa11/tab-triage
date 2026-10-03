@@ -138,9 +138,9 @@ async function busyAmong(tabs) {
 
 // --- sweep ---------------------------------------------------------------------------
 
-async function sweep() {
+// Shared by sweep and its preview. manual: "Sweep now" — every unprotected tab, whatever its age.
+async function sweepInputs(manual) {
   const state = await api("GET", "/api/state");
-  const { keep_open: keepOpen, never_read: neverRead } = state.settings;
   const [tabs, groups, stored] = await Promise.all([
     chrome.tabs.query({}),
     chrome.tabGroups.query({}),
@@ -148,9 +148,23 @@ async function sweep() {
   ]);
   const visible = tabs.filter((t) => t.url !== DASHBOARD);
   const options = {
-    now: Date.now(), staleMs: STALE_MS, mode: state.mode, keepOpen,
+    now: Date.now(), staleMs: STALE_MS, mode: state.mode, keepOpen: state.settings.keep_open,
     seen: stored.seen ?? {}, groupTitles: new Map(groups.map((g) => [g.id, g.title])),
+    ignoreAge: manual,
   };
+  return { state, visible, options };
+}
+
+// What a manual sweep would do, for the dashboard's confirmation. Changes nothing.
+async function previewSweep() {
+  const { state, visible, options } = await sweepInputs(true);
+  const plan = planSweep(visible, options);
+  return { mode: state.mode, saved: plan.candidates.length, dropped: plan.drop.length };
+}
+
+async function sweep({ manual = false } = {}) {
+  const { state, visible, options } = await sweepInputs(manual);
+  const neverRead = state.settings.never_read;
 
   // Probe everything we might close (saves and drops): catches in-progress forms, grabs text.
   const first = planSweep(visible, options);
@@ -283,7 +297,13 @@ async function tidyWindows() {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return false;
-  const handlers = { sweepNow: sweep, closePending, checkMemory: guardMemory, tidyWindows };
+  const handlers = {
+    sweepNow: () => sweep({ manual: true }),
+    previewSweep,
+    closePending,
+    checkMemory: guardMemory,
+    tidyWindows,
+  };
   const fn = handlers[msg?.type];
   if (!fn) return false;
   fn().then((r) => sendResponse({ ok: true, result: r }), (e) => {

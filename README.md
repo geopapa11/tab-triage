@@ -85,7 +85,7 @@ You don't start anything.
 | **Laptop asleep at 19:00** | The sweep runs when it wakes. |
 | **Chrome closed or laptop off at 19:00** | The sweep runs when you next open Chrome, if none ran in the last 24 hours. |
 | **After a restart** | The server starts at login; the extension loads with Chrome. |
-| **Any time** | **Sweep now** on the dashboard runs one immediately. |
+| **Any time** | **Sweep now** sweeps immediately and **ignores the 96 hours**: every tab that isn't protected is saved (and, after the dry-run week, closed). It shows a count and asks first. |
 
 The sweep only runs while Chrome is open.
 
@@ -126,7 +126,8 @@ Claude on later sweeps so it stops repeating the same mistake.
 
 ## What gets closed, kept and dropped
 
-A tab is **stale** when you haven't looked at it for 96 hours.
+A tab is **stale** when you haven't looked at it for 96 hours. The automatic 19:00 sweep only
+takes stale tabs; **Sweep now** and the first run take every tab that isn't protected.
 
 **Never closed:**
 - pinned tabs
@@ -212,7 +213,7 @@ Completed history.
 | **"Sorting failed … Claude isn't logged in"** | Run `claude auth login`, then click **Re-sort**. The tabs were saved to Unsorted; nothing is lost. |
 | Most tabs land in **Unsorted** | Raise **Maximum themes** in Settings, then click **Re-sort** on the Unsorted card. |
 | The dashboard looks out of date after an update | Click reload (↻) on the Tab Triage card in `chrome://extensions`, then refresh the dashboard. |
-| A sweep saved 0 tabs | Normal: nothing has been untouched for 96 hours yet. |
+| The 19:00 sweep saved 0 tabs | Normal: nothing has been untouched for 96 hours yet. Use **Sweep now** to clear everything unprotected anyway. |
 | Chrome's total memory stays high | Quit and reopen Chrome, and check Chrome's Task Manager (⋮ → More tools) for heavy tabs and extensions. |
 | Tab Triage disappeared from Chrome | Developer mode was turned off. Turn it on and load the `extension/` folder again; your saved tabs are still in the database. |
 

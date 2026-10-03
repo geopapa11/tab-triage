@@ -479,17 +479,30 @@ const actions = {
   retry: () => refresh(),
   "sweep-now": async (el) => {
     el.disabled = true;
-    toast("Sweeping…");
     try {
+      const p = await message("previewSweep");
+      const live = p.mode === "live";
+      if (!p.saved && !(live && p.dropped)) {
+        toast("Nothing to sweep: every open tab is protected (the one you're on, pinned, inboxes, audio, half-typed forms).");
+        return;
+      }
+      const what = `Save ${p.saved} tab${p.saved === 1 ? "" : "s"} to the dashboard${live ? " and close them" : ""}`
+        + (p.dropped && live ? `, and close ${p.dropped} duplicate${p.dropped === 1 ? "" : "s"}/junk` : "") + "?";
+      const kept = "The tab you're on in each window, pinned tabs, inboxes, tabs playing audio and half-typed forms stay open.";
+      const later = live ? "" : " (Dry-run week: saved tabs stay open until you click Close them now.)";
+      if (!confirm(`${what}\n\n${kept}${later}`)) return;
+      toast("Sweeping…");
       await act(async () => {
         const r = await message("sweepNow");
         const none = !r.saved && !r.dropped;
         toast(none
-          ? "Nothing to sweep: no tab has gone 96 hours untouched."
+          ? "Nothing to sweep: every open tab is protected."
           : r.closed
             ? `Saved and closed ${r.saved} tabs, dropped ${r.dropped}.`
             : `Saved ${r.saved} tabs${r.dropped ? `, ${r.dropped} to drop` : ""}. Nothing closed yet.`);
       });
+    } catch (e) {
+      toast(`Sweep failed: ${e.message}`);
     } finally {
       el.disabled = false;
     }

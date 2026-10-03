@@ -98,8 +98,9 @@ export function planSweep(tabs, options) {
     }
     if (level === 1) continue;
     const used = lastUse(t);
-    // Outside the first run (which you approve by hand), only stale tabs are touched — junk included.
-    if (c.mode !== "first-run" && c.now - used < c.staleMs) continue;
+    // Age only matters for automatic sweeps. The first run and a manual "Sweep now" (ignoreAge)
+    // are things you asked for, so every unprotected tab is in scope — junk included.
+    if (c.mode !== "first-run" && !c.ignoreAge && c.now - used < c.staleMs) continue;
     const reason = dropReason(t.url);
     if (reason) {
       drop.push({ id: t.id, url: t.url, reason });

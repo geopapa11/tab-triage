@@ -279,3 +279,21 @@ test("tabs restored but never loaded don't count as loaded or as unload targets"
   assert.deepEqual([live, discarded, neverLoaded].map(isLoaded), [true, false, false]);
   assert.deepEqual(unloadOrder([live, discarded, neverLoaded]), [live.id]);
 });
+
+// --- manual sweep ignores age ---------------------------------------------------------
+
+test("a manual sweep takes fresh tabs and fresh junk, but still never protected ones", () => {
+  const fresh = tab("https://a.com", { lastAccessed: NOW - H });
+  const freshSearch = tab("https://www.google.com/search?q=x", { lastAccessed: NOW - H });
+  const pinned = tab("https://p.com", { pinned: true, lastAccessed: NOW - H });
+  const active = tab("https://act.com", { active: true });
+  const inbox = tab("https://mail.google.com/mail/u/0/#inbox");
+  const plan = planSweep([fresh, freshSearch, pinned, active, inbox], ctx({ ignoreAge: true }));
+  assert.deepEqual(urls(plan.candidates), ["https://a.com"]);
+  assert.deepEqual(plan.drop.map((d) => d.id), [freshSearch.id]);
+});
+
+test("without ignoreAge the same fresh tabs are left alone", () => {
+  const fresh = tab("https://a.com", { lastAccessed: NOW - H });
+  assert.deepEqual(planSweep([fresh], ctx()).candidates, []);
+});
