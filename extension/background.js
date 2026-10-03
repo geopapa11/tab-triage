@@ -76,7 +76,7 @@ function recordActivity(windowId, tabId) {
     if (previous != null && previous !== tabId) lastActive[previous] = now; // the tab you just left
     lastActive[tabId] = now;
     activeByWindow[windowId] = tabId;
-    for (const [id, t] of Object.entries(lastActive)) if (now - t > 6 * 3600_000) delete lastActive[id];
+    for (const [id, t] of Object.entries(lastActive)) if (now - t > 48 * 3600_000) delete lastActive[id];
     await chrome.storage.session.set({ lastActive, activeByWindow });
   }).catch(report);
   return activityQueue;

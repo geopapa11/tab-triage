@@ -129,7 +129,7 @@ export function isLoaded(tab) {
 // reload (and lose its scroll position) every time you come back. `lastActive` is our own record
 // of when each tab id was last looked at or left — tab.lastAccessed alone only says when it was
 // last switched *to*, so a tab you read for an hour and just left would look an hour idle.
-export const MIN_IDLE_MS = 30 * 60_000;
+export const MIN_IDLE_MS = 24 * 3600_000;
 
 export function unloadOrder(
   tabs,

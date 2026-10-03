@@ -300,20 +300,18 @@ test("without ignoreAge the same fresh tabs are left alone", () => {
 
 // --- memory guard never unloads what you were just using --------------------------------
 
-test("tabs used in the last 30 minutes are never unloaded", () => {
-  const MIN = 60_000;
-  const justLeft = tab("https://a.com", { lastAccessed: NOW - 2 * H });   // activated 2h ago, left 1 min ago
-  const tenMinAgo = tab("https://b.com", { lastAccessed: NOW - 10 * MIN });
-  const idleHour = tab("https://c.com", { lastAccessed: NOW - 61 * MIN });
-  const order = unloadOrder([justLeft, tenMinAgo, idleHour], {
-    now: NOW, lastActive: { [justLeft.id]: NOW - 1 * MIN },
+test("tabs used in the last day are never unloaded", () => {
+  const justLeft = tab("https://a.com", { lastAccessed: NOW - 2 * D });   // activated 2 days ago, left 1 min ago
+  const thisMorning = tab("https://b.com", { lastAccessed: NOW - 10 * H });
+  const twoDaysIdle = tab("https://c.com", { lastAccessed: NOW - 2 * D });
+  const order = unloadOrder([justLeft, thisMorning, twoDaysIdle], {
+    now: NOW, lastActive: { [justLeft.id]: NOW - 60_000 },
   });
-  assert.deepEqual(order, [idleHour.id]);
+  assert.deepEqual(order, [twoDaysIdle.id]);
 });
 
-test("a tab becomes unloadable again once it has been idle for 30 minutes", () => {
-  const MIN = 60_000;
-  const t = tab("https://a.com", { lastAccessed: NOW - 3 * H });
-  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 29 * MIN } }), []);
-  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 31 * MIN } }), [t.id]);
+test("a tab becomes unloadable again once it has been idle for a day", () => {
+  const t = tab("https://a.com", { lastAccessed: NOW - 3 * D });
+  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 23 * H } }), []);
+  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 25 * H } }), [t.id]);
 });
