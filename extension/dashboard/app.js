@@ -112,7 +112,9 @@ function render() {
 }
 
 function renderDateline() {
-  const parts = [new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })];
+  const now = new Date();
+  const part = (opts) => now.toLocaleDateString("en-GB", opts);
+  const parts = [`${part({ weekday: "long" })} ${now.getDate()} ${part({ month: "long" })} ${now.getFullYear()}`];
   const sweep = S.state?.last_sweep;
   if (sweep) parts.push(`last sweep ${ago(sweep.at, Date.now())}`);
   if (S.state?.last_model) parts.push(`sorted by ${S.state.last_model}`);
