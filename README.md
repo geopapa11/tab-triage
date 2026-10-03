@@ -103,10 +103,13 @@ many tabs are loaded, and how many windows are open.
 |---|---|
 | Open a saved tab | Click its title. |
 | Work on a theme | **Open N** opens its top 6 tabs in a new window. |
+| Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
+| Add a page you're on | Right-click the page (or the Tab Triage toolbar icon) → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, or **Let Claude choose**. |
+| Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
 | Mark a tab done | Tick its box. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. Untick it to bring it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / up / down**. |
 | Reorder or move tabs | Drag a tab within its theme or onto another theme. |
-| Act on several tabs | Click the empty space in a tab's row to select it; shift-click selects a range. A bar offers **Done**, **Move to…**, **Snooze** and **Delete**. Esc clears. |
+| Act on several tabs | Click the empty space in a tab's row to select it; shift-click selects a range. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |
@@ -120,6 +123,9 @@ many tabs are loaded, and how many windows are open.
 A theme nobody has touched for 7 days shows **Stale — drop it?**; clicking it marks all its tabs
 done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
+
+**Done vs Remove:** tick a tab when you've finished with it; it's kept in Completed for 45 days
+as a record. Remove it when it turned out not to be useful; it leaves no history.
 
 Your corrections (moving a tab to another theme, renaming, merging, dissolving) are passed to
 Claude on later sweeps so it stops repeating the same mistake.

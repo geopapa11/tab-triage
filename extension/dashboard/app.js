@@ -6,6 +6,7 @@ import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
 import { rangeIds } from "../lib/select.js";
+import { extractTitle } from "../lib/addmenu.js";
 
 const DAY_S = 86400;
 const LIVE_TAB_BUDGET = 12;
@@ -80,6 +81,7 @@ async function refresh({ animate = false } = {}) {
   }
   render();
   if (before) flip(before);
+  if (!S.offline) chrome.runtime.sendMessage({ type: "themesChanged" }).catch(() => {});
   clearTimeout(pollTimer);
   pollTimer = setTimeout(refresh, S.state?.sorting ? 2500 : 20000);
 }
@@ -234,9 +236,10 @@ function tabRow(t, { theme = null, done = false } = {}) {
   if (theme) sub.unshift(`<span class="theme-chip">${esc(theme)}</span>`);
   if (t.pending_close) sub.push(`<span class="open-dot">● still open in Chrome</span>`);
   if (t.snoozed_until) sub.push(`wakes ${dayLabel(t.snoozed_until, Date.now())} ${hhmm(t.snoozed_until)}`);
+  const remove = `<button class="tool" data-action="remove-tab" title="Not useful after all: take it off the list (no Completed history) and close it in Chrome">Remove</button>`;
   const tools = t.snoozed_until
-    ? `<button class="tool" data-action="wake-tab">Wake now</button>`
-    : done ? "" : `<button class="tool" data-action="snooze-tab">Snooze</button>`;
+    ? `<button class="tool" data-action="wake-tab">Wake now</button>${remove}`
+    : done ? "" : `<button class="tool" data-action="snooze-tab">Snooze</button>${remove}`;
   return `
     <li class="tab ${t.status} ${t.back ? "back" : ""} ${S.selected.has(t.id) ? "selected" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
         draggable="${!done && !t.snoozed_until && !theme}">
@@ -274,6 +277,7 @@ function themeCard(th, i) {
           <div class="theme-tools">
             ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Ask Claude to sort these tabs again">Re-sort</button>` : ""}
             <button class="tool" data-action="open-theme">Open ${Math.min(6, open.length)}</button>
+            <button class="tool" data-action="add-link" title="Paste a link to add it to this theme">+ Add link</button>
             <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
             <button class="tool" data-action="snooze-theme">Snooze</button>
             <button class="tool" data-action="theme-menu" aria-label="More">⋯</button>
@@ -384,12 +388,56 @@ function flip(before) {
 // --- small UI pieces -----------------------------------------------------------------
 
 let toastTimer;
-function toast(text) {
+function toast(text, action = null) {
   const el = $("toast");
   el.textContent = text;
+  el.classList.toggle("has-action", !!action);
+  if (action) {
+    const b = document.createElement("button");
+    b.textContent = action.label;
+    b.onclick = () => {
+      el.classList.remove("show");
+      action.run();
+    };
+    el.append(" ", b);
+  }
   el.classList.add("show");
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove("show"), 3200);
+  toastTimer = setTimeout(() => el.classList.remove("show"), action ? 7000 : 3200);
+}
+
+// Remove = not useful after all: off the list (no Completed history), and closed in Chrome.
+// Undo restores the list entries and reopens the Chrome tabs in the background.
+async function removeTabs(ids) {
+  const byId = new Map(
+    [...S.board.themes, ...S.board.later_themes, ...S.board.snoozed_themes]
+      .flatMap((th) => th.tabs).concat(S.board.snoozed_tabs).map((t) => [t.id, t]),
+  );
+  const urls = new Set(ids.map((id) => byId.get(id)?.url).filter(Boolean));
+  await api("POST", "/api/tabs/bulk", { ids, action: "remove" });
+  const open = (await chrome.tabs.query({})).filter((t) => urls.has(t.url) && !t.url.startsWith(SELF));
+  if (open.length) await chrome.tabs.remove(open.map((t) => t.id));
+  const one = ids.length === 1 ? `“${byId.get(ids[0])?.title ?? "tab"}”` : `${ids.length} tabs`;
+  toast(`Removed ${one}${open.length ? ` and closed ${open.length} in Chrome` : ""}.`, {
+    label: "Undo",
+    run: () => act(async () => {
+      await api("POST", "/api/tabs/restore", { ids });
+      for (const t of open) await chrome.tabs.create({ url: t.url, active: false, windowId: t.windowId }).catch(() => chrome.tabs.create({ url: t.url, active: false }));
+    }),
+  });
+  await refresh({ animate: true });
+}
+
+async function pageTitle(url) {
+  try {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
+    const res = await fetch(url, { signal: ctrl.signal, credentials: "include" });
+    clearTimeout(timer);
+    return extractTitle(await res.text(), url);
+  } catch {
+    return extractTitle("", url);
+  }
 }
 
 function closePopover() {
@@ -409,8 +457,10 @@ function popover(anchor, html, onClick) {
   pop.onclick = (e) => {
     const b = e.target.closest("[data-choice]");
     if (!b) return;
-    const value = b.dataset.choice === "date" ? pop.querySelector("input[type=date]").value : b.dataset.choice;
-    if (b.dataset.choice === "date" && !value) return;
+    const input = b.dataset.choice === "date" ? pop.querySelector("input[type=date]")
+      : b.dataset.choice === "input" ? pop.querySelector("input[type=url]") : null;
+    const value = input ? input.value.trim() : b.dataset.choice;
+    if (input && !value) return;
     closePopover();
     onClick(value);
   };
@@ -537,6 +587,30 @@ const actions = {
   "snooze-tab": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until }))),
   "wake-tab": (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until: null })),
   "snooze-theme": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/themes/${themeId(el)}/snooze`, { until }))),
+  "remove-tab": (el) => removeTabs([tabId(el)]),
+  "add-link": (el) => {
+    const th = themeById(themeId(el));
+    popover(el, `
+      <label>Link <input type="url" placeholder="https://…" style="width:260px"></label>
+      <button data-choice="input">Add to “${esc(th.name)}”</button>`,
+    async (url) => {
+      if (!/^https?:\/\//i.test(url)) {
+        toast("Only web links (http or https) can be added.");
+        return;
+      }
+      toast("Adding…");
+      await act(async () => {
+        const title = await pageTitle(url);
+        await api("POST", "/api/tabs/add", { url, title, theme: th.name });
+        toast(`Added “${title}” to ${th.name}.`);
+      });
+    });
+    const input = $("popover").querySelector("input[type=url]");
+    input.focus();
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") $("popover").querySelector('[data-choice="input"]').click();
+    });
+  },
   later: (el) => {
     const th = themeById(themeId(el));
     act(() => api("POST", `/api/themes/${th.id}/later`, { on: true }));
@@ -728,7 +802,7 @@ function renderBulkBar() {
     <button class="btn small" data-bulk="check">Done</button>
     <button class="btn small ghost" data-bulk="move">Move to…</button>
     <button class="btn small ghost" data-bulk="snooze">Snooze</button>
-    <button class="btn small ghost danger" data-bulk="delete">Delete</button>
+    <button class="btn small ghost danger" data-bulk="remove">Remove</button>
     <button class="tool" data-bulk="clear">Clear</button>`;
 }
 
@@ -748,8 +822,10 @@ document.addEventListener("click", (e) => {
     bulk("check");
     toast(`Marked ${n} tabs done. They stay in Completed for 45 days.`);
   } else if (kind === "snooze") snoozeMenu(b, (until) => bulk("snooze", { until }));
-  else if (kind === "delete") {
-    if (confirm(`Delete ${n} tabs for good? This can't be undone. (Tabs still open in Chrome stay open.)`)) bulk("delete");
+  else if (kind === "remove") {
+    const ids = [...S.selected];
+    clearSelection();
+    removeTabs(ids).catch((e) => toast(`Remove failed: ${e.message}`));
   } else if (kind === "move") {
     popover(b, `
       ${S.board.themes.map((t) => `<button data-choice="${esc(t.name)}">${esc(t.name)}</button>`).join("")}

@@ -258,7 +258,7 @@ def test_bulk_done_and_delete(env):
     ids = ids_by_title(env)
     assert call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://b"]], "action": "check"})[0] == 200
     assert sorted(t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]) == ["https://a", "https://b"]
-    call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://c"]], "action": "delete"})
+    call(env, "POST", "/api/tabs/bulk", {"ids": [ids["https://a"], ids["https://c"]], "action": "remove"})
     assert [t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]] == ["https://b"]
     assert themes(env) == {}
 
@@ -307,3 +307,39 @@ def test_later_round_trip(env):
     assert (board["themes"], [t["name"] for t in board["later_themes"]]) == ([], ["Sorted"])
     call(env, "POST", f"/api/themes/{tid}/later", {"on": False})
     assert list(themes(env)) == ["Sorted"]
+
+
+# --- remove / restore / add ---------------------------------------------------------
+
+def test_remove_and_restore_round_trip(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    ids = ids_by_title(env)
+    assert call(env, "POST", f"/api/tabs/{ids['https://a']}/remove", {})[0] == 200
+    assert themes(env) == {"Sorted": ["https://b"]}
+    call(env, "POST", "/api/tabs/restore", {"ids": [ids["https://a"]]})
+    assert sorted(themes(env)["Sorted"]) == ["https://a", "https://b"]
+
+
+def test_bulk_remove(env):
+    sweep(env, [tab("https://a"), tab("https://b")])
+    ids = ids_by_title(env)
+    call(env, "POST", "/api/tabs/bulk", {"ids": list(ids.values()), "action": "remove"})
+    assert themes(env) == {}
+    assert call(env, "GET", "/api/completed")[1]["tabs"] == []
+
+
+def test_add_tab_to_a_named_theme(env):
+    sweep(env, [tab("https://a")])
+    status, body = call(env, "POST", "/api/tabs/add", {"url": "https://new", "title": "New page", "theme": "Sorted"})
+    assert status == 200 and body["theme"] == "Sorted"
+    assert themes(env)["Sorted"][0] == "New page"
+
+
+def test_add_tab_without_theme_lets_claude_sort_it(env):
+    call(env, "POST", "/api/tabs/add", {"url": "https://new", "title": "New page"})
+    assert themes(env) == {"Sorted": ["New page"]}  # fake sorter filed it
+    assert env["sorted"]
+
+
+def test_add_tab_rejects_non_web_urls(env):
+    assert call(env, "POST", "/api/tabs/add", {"url": "chrome://settings", "title": "x"})[0] == 400

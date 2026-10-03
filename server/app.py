@@ -176,6 +176,8 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
             store.move_tab(tid, theme=theme, index=int(body.get("index", 0)))
         elif action == "opened":
             store.mark_opened([tid])
+        elif action == "remove":
+            store.remove_tabs([tid])
         return {"ok": True}
 
     def theme_action(body, m):
@@ -221,11 +223,28 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
                 raise BadRequest("theme name required")
             for tid in reversed(ids):  # each lands on top, so reverse keeps the selection order
                 store.move_tab(tid, theme=theme, index=0)
-        elif action == "delete":
-            store.delete_tabs(ids)
+        elif action == "remove":
+            store.remove_tabs(ids)
         else:
             raise BadRequest(f"unknown bulk action {action!r}")
         return {"ok": True, "count": len(ids)}
+
+    def post_restore(body, m):
+        store.restore_tabs([int(i) for i in body.get("ids", [])])
+        return {"ok": True}
+
+    def post_add(body, m):
+        url = str(body.get("url", "")).strip()
+        if not re.match(r"https?://", url):
+            raise BadRequest("only http(s) pages can be added")
+        title = str(body.get("title") or "").strip() or url
+        theme = str(body.get("theme") or "").strip() or None
+        (tid,) = store.capture([{"url": url, "title": title, "text": body.get("text") or None}])
+        if theme:
+            store.assign(tid, theme)
+        else:
+            sorter.request()  # let Claude pick the theme
+        return {"ok": True, "id": tid, "theme": theme}
 
     def post_reorder_themes(body, m):
         store.reorder_themes([int(i) for i in body.get("ids", [])])
@@ -270,8 +289,10 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         ("POST", r"/api/sweep", post_sweep),
         ("POST", r"/api/closed", post_closed),
         ("POST", r"/api/first-run/complete", post_first_run_complete),
-        ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|snooze|move|opened)", tab_action),
+        ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|snooze|move|opened|remove)", tab_action),
         ("POST", r"/api/tabs/bulk", post_bulk),
+        ("POST", r"/api/tabs/restore", post_restore),
+        ("POST", r"/api/tabs/add", post_add),
         ("POST", r"/api/themes/reorder", post_reorder_themes),
         ("POST", r"/api/themes/(?P<id>\d+)/(?P<action>rename|merge|snooze|done|delete|dissolve|later)", theme_action),
         ("POST", r"/api/opened", post_opened),

@@ -414,3 +414,42 @@ def test_existing_database_gains_later_column(tmp_path, clock):
     s = Store(db, now=clock)
     s.set_later(s.create_theme("Old"), True)
     assert s.theme_names() == ["Old"]
+
+
+# --- remove (not useful) and restore ------------------------------------------------
+
+def test_removed_tab_disappears_without_completed_history(store):
+    a, b = add_to_theme(store, "SQL", "https://a", "https://b")
+    store.remove_tabs([a])
+    assert open_titles(board_theme(store.board(), "SQL")) == ["https://b"]
+    assert store.completed() == []
+
+
+def test_restore_puts_a_removed_tab_back_where_it_was(store):
+    a, b, c = add_to_theme(store, "SQL", "https://a", "https://b", "https://c")
+    store.remove_tabs([b])
+    store.restore_tabs([b])
+    assert open_titles(board_theme(store.board(), "SQL")) == ["https://c", "https://b", "https://a"]
+
+
+def test_removed_tabs_are_purged_after_a_day(store, clock):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.remove_tabs([a])
+    clock.advance(1.1)
+    store.purge()
+    store.restore_tabs([a])
+    assert store.board()["themes"] == []
+
+
+def test_removing_cancels_a_pending_close(store):
+    (a,) = store.capture([cap("https://a")], pending_close=True)
+    store.assign(a, "SQL")
+    store.remove_tabs([a])
+    assert store.pending_close_urls() == []
+
+
+def test_a_removed_page_swept_again_comes_back_open(store):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.remove_tabs([a])
+    store.capture([cap("https://a")])
+    assert open_titles(board_theme(store.board(), "SQL")) == ["https://a"]

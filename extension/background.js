@@ -7,6 +7,7 @@ import {
 import { api } from "./lib/api.js";
 import { markSeen } from "./lib/seen.js";
 import { planTidy } from "./lib/tidy.js";
+import { menuItems, parseMenuId } from "./lib/addmenu.js";
 
 const SWEEP_HOUR = 19;
 const STALE_MS = 96 * 3600_000;
@@ -25,7 +26,10 @@ async function scheduleAlarms() {
   if (!(await chrome.alarms.get("memory"))) chrome.alarms.create("memory", { periodInMinutes: 5 });
 }
 
-chrome.runtime.onInstalled.addListener(scheduleAlarms);
+chrome.runtime.onInstalled.addListener(() => {
+  scheduleAlarms();
+  rebuildMenus().catch(report);
+});
 chrome.runtime.onStartup.addListener(async () => {
   await scheduleAlarms();
   const { lastSweepAt } = await chrome.storage.local.get("lastSweepAt");
@@ -260,6 +264,40 @@ async function guardMemory() {
   return { ...mem, unloaded };
 }
 
+// --- right-click menu: add the current page to a theme --------------------------------
+
+let menuKey = null;
+async function rebuildMenus() {
+  const board = await api("GET", "/api/board");
+  const themes = [...board.themes, ...board.later_themes, ...board.snoozed_themes]
+    .filter((t) => t.name !== "Unsorted")
+    .map((t) => ({ id: t.id, name: t.name }));
+  const key = JSON.stringify(themes);
+  if (key === menuKey) return;
+  menuKey = key;
+  await chrome.contextMenus.removeAll();
+  for (const item of menuItems(themes)) {
+    chrome.contextMenus.create({ contexts: ["page", "action"], ...item });
+  }
+}
+
+chrome.contextMenus.onClicked.addListener(async (info, tab) => {
+  const action = parseMenuId(info.menuItemId);
+  if (!action || !tab || !/^https?:/.test(tab.url)) return;
+  try {
+    const [state, board] = await Promise.all([api("GET", "/api/state"), api("GET", "/api/board")]);
+    const all = [...board.themes, ...board.later_themes, ...board.snoozed_themes];
+    const theme = action.themeId == null ? null : all.find((t) => t.id === action.themeId)?.name;
+    const { text } = textAllowed(tab.url, state.settings.never_read) ? await probe(tab, true) : { text: null };
+    await api("POST", "/api/tabs/add", { url: tab.url, title: tab.title, theme, text });
+    if (action.close) await chrome.tabs.remove(tab.id);
+    await chrome.action.setBadgeText({ text: "✓" });
+    setTimeout(() => updateBadge(), 1500);
+  } catch (e) {
+    report(e);
+  }
+});
+
 // --- merge windows: gather everything into a work window + an inbox window --------
 
 async function tidyWindows() {
@@ -300,6 +338,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   const handlers = {
     sweepNow: () => sweep({ manual: true }),
     previewSweep,
+    themesChanged: rebuildMenus,
     closePending,
     checkMemory: guardMemory,
     tidyWindows,
@@ -315,3 +354,4 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 scheduleAlarms();
 updateBadge();
+rebuildMenus().catch(report);

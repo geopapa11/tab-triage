@@ -82,6 +82,10 @@ class Store:
         if "later" not in theme_cols:
             with self._db:
                 self._db.execute("ALTER TABLE themes ADD COLUMN later INTEGER NOT NULL DEFAULT 0")
+        tab_cols = {r[1] for r in self._db.execute("PRAGMA table_info(tabs)")}
+        if "removed_at" not in tab_cols:
+            with self._db:
+                self._db.execute("ALTER TABLE tabs ADD COLUMN removed_at REAL")
 
     # --- helpers ----------------------------------------------------------------
 
@@ -140,10 +144,11 @@ class Store:
         with self._lock, self._db:
             for it in items:
                 row = self._one("SELECT id, status, theme_id FROM tabs WHERE url = ?", it["url"])
-                if row and row["status"] == "done":
-                    # Reopened after being ticked done: it's live work again.
+                if row and row["status"] in ("done", "removed"):
+                    # Ticked or removed earlier, but open in Chrome again and swept: live work again.
                     self._db.execute(
-                        "UPDATE tabs SET status = 'open', completed_at = NULL, position = ? WHERE id = ?",
+                        "UPDATE tabs SET status = 'open', completed_at = NULL, removed_at = NULL, "
+                        "position = ? WHERE id = ?",
                         (self._top_position(row["theme_id"]), row["id"]),
                     )
                 if row:
@@ -169,7 +174,8 @@ class Store:
     def pending_sort(self):
         with self._lock:
             rows = self._q(
-                "SELECT id, url, title, text, group_hint FROM tabs WHERE theme_id IS NULL ORDER BY id"
+                "SELECT id, url, title, text, group_hint FROM tabs "
+                "WHERE theme_id IS NULL AND status = 'open' ORDER BY id"
             )
         return [dict(r) for r in rows]
 
@@ -340,7 +346,9 @@ class Store:
         """Delete a theme's open tabs. Ticked tabs keep their Completed history (and the theme's
         name with it); the now-hidden theme row goes when purge removes the last of them."""
         with self._lock, self._db:
-            self._db.execute("DELETE FROM tabs WHERE theme_id = ? AND status = 'open'", (theme_id,))
+            self._db.execute(
+                "DELETE FROM tabs WHERE theme_id = ? AND status IN ('open', 'removed')", (theme_id,)
+            )
             if self._one("SELECT 1 FROM tabs WHERE theme_id = ?", theme_id):
                 self._db.execute(
                     "UPDATE themes SET position = NULL, later = 0, snoozed_until = NULL, back = 0 "
@@ -367,6 +375,7 @@ class Store:
             has_done = self._one("SELECT 1 FROM tabs WHERE theme_id = ? AND status = 'done'", theme_id)
             unsorted = self.create_theme("Unsorted") if has_done else None
             with self._db:
+                self._db.execute("DELETE FROM tabs WHERE theme_id = ? AND status = 'removed'", (theme_id,))
                 self._db.execute(
                     "UPDATE tabs SET theme_id = NULL, back = 0 WHERE theme_id = ? AND status = 'open'",
                     (theme_id,),
@@ -375,11 +384,31 @@ class Store:
                 self._db.execute("DELETE FROM themes WHERE id = ?", (theme_id,))
                 self._record("dissolve", {"theme": name})
 
+    def remove_tabs(self, tab_ids):
+        """Not useful after all: off the list, no Completed history. Kept for a day so the
+        dashboard's Undo can restore them, then purged."""
+        with self._lock, self._db:
+            self._db.executemany(
+                "UPDATE tabs SET status = 'removed', removed_at = ?, pending_close = 0, back = 0 "
+                "WHERE id = ? AND status != 'removed'",
+                [(self.now(), tid) for tid in tab_ids],
+            )
+
+    def restore_tabs(self, tab_ids):
+        with self._lock, self._db:
+            self._db.executemany(
+                "UPDATE tabs SET status = 'open', removed_at = NULL WHERE id = ? AND status = 'removed'",
+                [(tid,) for tid in tab_ids],
+            )
+
     def purge(self):
         with self._lock, self._db:
             self._db.execute(
                 "DELETE FROM tabs WHERE status = 'done' AND completed_at < ?",
                 (self.now() - DONE_RETENTION,),
+            )
+            self._db.execute(
+                "DELETE FROM tabs WHERE status = 'removed' AND removed_at < ?", (self.now() - DAY,)
             )
             self._db.execute(
                 "DELETE FROM themes WHERE id NOT IN (SELECT DISTINCT theme_id FROM tabs "
