@@ -309,7 +309,8 @@ chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   try {
     const [state, board] = await Promise.all([api("GET", "/api/state"), api("GET", "/api/board")]);
     const all = [...board.themes, ...board.later_themes, ...board.snoozed_themes];
-    const theme = action.themeId == null ? null : all.find((t) => t.id === action.themeId)?.name;
+    const theme = action.unsorted ? "Unsorted"
+      : action.themeId == null ? null : all.find((t) => t.id === action.themeId)?.name;
     const { text } = textAllowed(tab.url, state.settings.never_read) ? await probe(tab, true) : { text: null };
     await api("POST", "/api/tabs/add", { url: tab.url, title: tab.title, theme, text });
     if (action.close) await chrome.tabs.remove(tab.id);

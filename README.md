@@ -104,10 +104,10 @@ many tabs are loaded, and how many windows are open.
 | Open a saved tab | Click its title. |
 | Work on a theme | **Open N** opens its top 6 tabs in a new window. |
 | Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
-| Add a page you're on | Right-click the page (or the Tab Triage toolbar icon) → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, or **Let Claude choose**. |
+| Add a page you're on | Right-click **inside the page** (or right-click the Tab Triage toolbar icon) → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
 | Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
 | Mark a tab done | Tick its box. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. Untick it to bring it back. |
-| Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Make it #1 / Move up / Move down**. |
+| Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
 | Act on several tabs | Click the empty space in a tab's row to select it; shift-click selects a range. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
@@ -116,7 +116,7 @@ many tabs are loaded, and how many windows are open.
 | Combine themes | **⋯ → Merge into…**, then pick the theme from the searchable list. |
 | Finish a whole theme | **⋯ → Mark all done**. Reversible for 45 days. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
-| Remove a theme | **Remove** on the theme card. All its tabs leave the list (and close in Chrome if open); tabs you had already ticked keep their history in Completed. **Undo** in the message brings everything back. |
+| Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already ticked keep their history in Completed. **Undo** in the message brings everything back. |
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
@@ -248,7 +248,9 @@ saved tabs stay in `~/Library/Application Support/tab-triage/`; delete that fold
   SQLite. It stores everything, runs `claude -p` to sort, and measures Chrome's memory. About
   15 MB of RAM.
 
-Design decisions and how each part was verified are in [docs/PLAN.md](docs/PLAN.md).
+How the parts work together, the data model and the API are described in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Design decisions and how each part was verified are
+in [docs/PLAN.md](docs/PLAN.md).
 
 **Tests:**
 

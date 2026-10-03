@@ -32,6 +32,7 @@ export function menuItems(themes) {
     const parentId = `tt-${mode}`;
     items.push({ id: parentId, parentId: "tt-root", title });
     items.push({ id: `tt-add|${mode}|auto`, parentId, title: "Let Claude choose" });
+    items.push({ id: `tt-add|${mode}|unsorted`, parentId, title: "On its own (Unsorted)" });
     items.push({ id: `tt-sep|${mode}`, parentId, type: "separator" });
     for (const t of themes) items.push({ id: `tt-add|${mode}|${t.id}`, parentId, title: t.name });
   }
@@ -39,7 +40,8 @@ export function menuItems(themes) {
 }
 
 export function parseMenuId(id) {
-  const m = /^tt-add\|(close|keep)\|(auto|\d+)$/.exec(String(id));
+  const m = /^tt-add\|(close|keep)\|(auto|unsorted|\d+)$/.exec(String(id));
   if (!m) return null;
-  return { close: m[1] === "close", themeId: m[2] === "auto" ? null : Number(m[2]) };
+  const named = /^\d+$/.test(m[2]);
+  return { close: m[1] === "close", themeId: named ? Number(m[2]) : null, unsorted: m[2] === "unsorted" };
 }

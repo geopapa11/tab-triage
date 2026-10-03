@@ -704,14 +704,15 @@ const actions = {
     const open = th.tabs.filter((t) => t.status === "open").length;
     popover(el, `
       ${th.name === "Unsorted" ? "" : `
-      <button data-choice="move:top">Make it #1 <span class="hint">top priority</span></button>
+      <button data-choice="move:top">Move to top <span class="hint">makes it #1</span></button>
       <button data-choice="move:up">Move up</button>
       <button data-choice="move:down">Move down</button>
       <hr>`}
       <button data-choice="rename">Rename</button>
       <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
       <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
-      <button data-choice="merge">Merge into… <span class="hint">pick a theme</span></button>`,
+      <button data-choice="merge">Merge into… <span class="hint">pick a theme</span></button>
+      ${th.name === "Unsorted" ? "" : `<button data-choice="remove" class="danger">Remove theme <span class="hint">all its tabs, with undo</span></button>`}`,
     (choice) => {
       if (choice.startsWith("move:")) {
         const visibleRanked = S.board.themes.filter((t) => t.ranked).map((t) => t.id);
@@ -726,6 +727,8 @@ const actions = {
       } else if (choice === "dissolve") {
         if (!confirm(`Dissolve “${th.name}”? Its ${open} tabs go back to Claude to be sorted again, and Claude won't recreate this theme.`)) return;
         act(() => api("POST", `/api/themes/${id}/dissolve`, {}));
+      } else if (choice === "remove") {
+        actions["remove-theme"](el);
       } else if (choice === "merge") {
         // Opened after this click finishes, or the "click outside closes the menu" handler
         // would close the picker straight away.

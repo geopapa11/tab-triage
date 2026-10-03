@@ -17,14 +17,19 @@ test("the right-click menu offers add-and-close and add-keep-open, each with eve
   const under = (parent) => items.filter((i) => i.parentId === parent).map((i) => i.title ?? "—");
   assert.deepEqual(under(undefined), ["Add this page to Tab Triage"]);
   assert.deepEqual(under("tt-root"), ["Add & close", "Add, keep open"]);
-  assert.deepEqual(under("tt-close"), ["Let Claude choose", "—", "Team PRs", "SQL research"]);
-  assert.deepEqual(under("tt-keep"), ["Let Claude choose", "—", "Team PRs", "SQL research"]);
+  const choices = ["Let Claude choose", "On its own (Unsorted)", "—", "Team PRs", "SQL research"];
+  assert.deepEqual(under("tt-close"), choices);
+  assert.deepEqual(under("tt-keep"), choices);
 });
 
 test("menu ids round-trip to an action", () => {
   const items = menuItems([{ id: 3, name: "Team PRs" }]);
   const ids = items.filter((i) => i.parentId === "tt-close" && i.type !== "separator").map((i) => i.id);
-  assert.deepEqual(ids.map(parseMenuId), [{ close: true, themeId: null }, { close: true, themeId: 3 }]);
-  assert.deepEqual(parseMenuId("tt-add|keep|3"), { close: false, themeId: 3 });
+  assert.deepEqual(ids.map(parseMenuId), [
+    { close: true, themeId: null, unsorted: false },
+    { close: true, themeId: null, unsorted: true },
+    { close: true, themeId: 3, unsorted: false },
+  ]);
+  assert.deepEqual(parseMenuId("tt-add|keep|3"), { close: false, themeId: 3, unsorted: false });
   assert.equal(parseMenuId("something-else"), null);
 });
