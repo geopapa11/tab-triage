@@ -169,8 +169,8 @@ Settings.
 Every 5 minutes, and after a page finishes loading, the extension checks how much memory Chrome's
 tabs use. Above the **tab memory budget** (1 GB by default) it *unloads* the two least recently
 used tabs, and repeats until it is under. Unloaded tabs stay in the tab strip and reload when you
-click them. The tab you're on, tabs playing audio and tabs with half-filled forms are never
-unloaded; keep-open and pinned tabs go last.
+click them. The tab you're on, any tab you used in the last 30 minutes, tabs playing audio
+and tabs with half-filled forms are never unloaded; keep-open and pinned tabs go last.
 
 The header also shows Chrome's total. That figure includes Chrome itself, the GPU process and
 extensions, which unloading tabs can't reduce, and it over-counts memory that Chrome's processes

@@ -124,11 +124,23 @@ export function isLoaded(tab) {
   return !tab.discarded && tab.status !== "unloaded";
 }
 
-export function unloadOrder(tabs, { keepOpen = [], busyIds = new Set() } = {}) {
+// Tabs the memory guard may unload, least recently used first; keep-open and pinned tabs last.
+// A tab used in the last `minIdleMs` is never unloaded: unloading the tab you just left makes it
+// reload (and lose its scroll position) every time you come back. `lastActive` is our own record
+// of when each tab id was last looked at or left — tab.lastAccessed alone only says when it was
+// last switched *to*, so a tab you read for an hour and just left would look an hour idle.
+export const MIN_IDLE_MS = 30 * 60_000;
+
+export function unloadOrder(
+  tabs,
+  { keepOpen = [], busyIds = new Set(), now = Date.now(), minIdleMs = MIN_IDLE_MS, lastActive = {} } = {},
+) {
   const tier = (t) => (t.pinned || isKeepOpen(t, keepOpen) ? 1 : 0);
+  const lastUsed = (t) => Math.max(t.lastAccessed ?? 0, lastActive[t.id] ?? 0);
   return tabs
     .filter((t) => !t.active && !t.audible && isLoaded(t) && !busyIds.has(t.id) && HTTP.test(t.url))
-    .sort((a, b) => tier(a) - tier(b) || (a.lastAccessed ?? 0) - (b.lastAccessed ?? 0))
+    .filter((t) => now - lastUsed(t) >= minIdleMs)
+    .sort((a, b) => tier(a) - tier(b) || lastUsed(a) - lastUsed(b))
     .map((t) => t.id);
 }
 

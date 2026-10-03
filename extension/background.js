@@ -64,7 +64,26 @@ chrome.action.onClicked.addListener(async () => {
 
 // --- activity tracking -------------------------------------------------------------
 
-chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+// When each tab id was last looked at or left, for the memory guard's "recently used" rule.
+// Kept in session storage so it survives the service worker being suspended. Updates are chained
+// so quick tab switches can't overwrite each other.
+let activityQueue = Promise.resolve();
+function recordActivity(windowId, tabId) {
+  activityQueue = activityQueue.then(async () => {
+    const { lastActive = {}, activeByWindow = {} } = await chrome.storage.session.get(["lastActive", "activeByWindow"]);
+    const now = Date.now();
+    const previous = activeByWindow[windowId];
+    if (previous != null && previous !== tabId) lastActive[previous] = now; // the tab you just left
+    lastActive[tabId] = now;
+    activeByWindow[windowId] = tabId;
+    for (const [id, t] of Object.entries(lastActive)) if (now - t > 6 * 3600_000) delete lastActive[id];
+    await chrome.storage.session.set({ lastActive, activeByWindow });
+  }).catch(report);
+  return activityQueue;
+}
+
+chrome.tabs.onActivated.addListener(async ({ tabId, windowId }) => {
+  recordActivity(windowId, tabId);
   const tab = await chrome.tabs.get(tabId).catch(() => null);
   if (tab) markSeen(tab.url);
   updateBadge();
@@ -250,7 +269,10 @@ async function guardMemory() {
   if (!mem.over) return mem;
   const state = await api("GET", "/api/state");
   const tabs = await chrome.tabs.query({});
-  const order = unloadOrder(tabs.filter((t) => t.url !== DASHBOARD), { keepOpen: state.settings.keep_open });
+  const { lastActive = {} } = await chrome.storage.session.get("lastActive");
+  const order = unloadOrder(tabs.filter((t) => t.url !== DASHBOARD), {
+    keepOpen: state.settings.keep_open, now: Date.now(), lastActive,
+  });
   const byId = new Map(tabs.map((t) => [t.id, t]));
   let unloaded = 0;
   for (const id of order) {
@@ -351,6 +373,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   });
   return true;
 });
+
+// Seed "which tab is showing in each window" so the first tab you leave after a reload counts.
+chrome.tabs.query({ active: true }).then((tabs) => {
+  for (const t of tabs) recordActivity(t.windowId, t.id);
+}).catch(report);
 
 scheduleAlarms();
 updateBadge();

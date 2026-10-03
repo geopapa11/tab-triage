@@ -297,3 +297,23 @@ test("without ignoreAge the same fresh tabs are left alone", () => {
   const fresh = tab("https://a.com", { lastAccessed: NOW - H });
   assert.deepEqual(planSweep([fresh], ctx()).candidates, []);
 });
+
+// --- memory guard never unloads what you were just using --------------------------------
+
+test("tabs used in the last 30 minutes are never unloaded", () => {
+  const MIN = 60_000;
+  const justLeft = tab("https://a.com", { lastAccessed: NOW - 2 * H });   // activated 2h ago, left 1 min ago
+  const tenMinAgo = tab("https://b.com", { lastAccessed: NOW - 10 * MIN });
+  const idleHour = tab("https://c.com", { lastAccessed: NOW - 61 * MIN });
+  const order = unloadOrder([justLeft, tenMinAgo, idleHour], {
+    now: NOW, lastActive: { [justLeft.id]: NOW - 1 * MIN },
+  });
+  assert.deepEqual(order, [idleHour.id]);
+});
+
+test("a tab becomes unloadable again once it has been idle for 30 minutes", () => {
+  const MIN = 60_000;
+  const t = tab("https://a.com", { lastAccessed: NOW - 3 * H });
+  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 29 * MIN } }), []);
+  assert.deepEqual(unloadOrder([t], { now: NOW, lastActive: { [t.id]: NOW - 31 * MIN } }), [t.id]);
+});
