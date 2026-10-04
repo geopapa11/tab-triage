@@ -15,7 +15,7 @@ test("without a title, the address stands in", () => {
 test("the right-click menu offers add-and-close and add-keep-open, each with every theme", () => {
   const items = menuItems([{ id: 3, name: "Team PRs" }, { id: 9, name: "SQL research" }]);
   const under = (parent) => items.filter((i) => i.parentId === parent).map((i) => i.title ?? "—");
-  assert.deepEqual(under(undefined), ["Add this page to Tab Triage"]);
+  assert.deepEqual(under(undefined), ["Add this tab to Tab Triage"]);
   assert.deepEqual(under("tt-root"), ["Add & close", "Add, keep open"]);
   const choices = ["Let Claude choose", "On its own (Unsorted)", "—", "Team PRs", "SQL research"];
   assert.deepEqual(under("tt-close"), choices);

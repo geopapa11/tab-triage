@@ -27,7 +27,7 @@ export function extractTitle(html, url) {
 
 // Items for chrome.contextMenus.create, in order. themes: [{id, name}] in priority order.
 export function menuItems(themes) {
-  const items = [{ id: "tt-root", title: "Add this page to Tab Triage" }];
+  const items = [{ id: "tt-root", title: "Add this tab to Tab Triage" }];
   for (const [mode, title] of [["close", "Add & close"], ["keep", "Add, keep open"]]) {
     const parentId = `tt-${mode}`;
     items.push({ id: parentId, parentId: "tt-root", title });

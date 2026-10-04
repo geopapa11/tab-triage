@@ -152,7 +152,7 @@ function renderInstruments() {
       <div class="label"><span>Mode</span></div>
       <div class="value"><span class="pill ${mode.cls}">${esc(mode.label)}</span></div>
     </div>
-    <div class="gauge" title="Memory used by web pages. Above the budget, Chrome frees the memory of tabs you have not used recently; they stay in the tab strip and reload when clicked. The Chrome total also counts the browser itself, the GPU process and extensions.">
+    <div class="gauge" title="Memory used by your tabs. Above the budget, Chrome frees the memory of tabs you have not used recently; they stay in the tab strip and reload when clicked. The Chrome total also counts the browser itself, the GPU process and extensions.">
       <div class="label"><span>Tab memory</span><span>budget ${+(cap / 1024 ** 3).toFixed(2)} GB</span></div>
       <div class="value">${gb(tabsMem)} GB <span class="sub-value">· Chrome total ${gb(total)} GB</span></div>
       <div class="meter ${memCls}"><i style="width:${pct}%"></i></div>
@@ -232,7 +232,7 @@ function renderViews() {
   for (const b of $("views").querySelectorAll("button")) {
     const v = b.dataset.view;
     b.setAttribute("aria-current", v === S.view ? "page" : "false");
-    b.title = { themes: "Your saved tabs, by theme.", open: "Pages open in Chrome right now.",
+    b.title = { themes: "Your saved tabs, by theme.", open: "Tabs open in Chrome right now.",
       snoozed: "Tabs and themes hidden until a date.", completed: "Tabs you marked as done." }[v] ?? "";
     b.innerHTML = `${esc(labels[v] ?? v)}${counts[v] != null ? `<span class="count">${counts[v]}</span>` : ""}`;
   }
@@ -291,7 +291,7 @@ function themeCard(th, i) {
           <div class="theme-tools">
             ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Sort these tabs into themes again.">Re-sort</button>` : ""}
             <button class="tool" data-action="open-theme" title="Open the top ${Math.min(S.state.settings.open_tabs_max, open.length)} tabs in a new window.">Open ${Math.min(S.state.settings.open_tabs_max, open.length)}</button>
-            <button class="tool" data-action="add-link" title="Add a link to this theme.">+ Add link</button>
+            <button class="tool" data-action="add-link" title="Add a tab to this theme by pasting its link.">+ Add tab</button>
             <button class="tool" data-action="later" title="Collapse this theme into the Later list at the bottom.">Later</button>
             <button class="tool" data-action="snooze-theme" title="Hide this theme until a date you pick.">Snooze</button>
             ${th.name === "Unsorted" ? "" : `<button class="tool warn" data-action="remove-theme" title="Remove all tabs in this theme and close them in Chrome. Can be undone.">Remove</button>`}
@@ -344,7 +344,7 @@ function renderThemes() {
 // Every web page open in Chrome right now, so any of them can be filed into a theme from here.
 function renderOpen() {
   if (!S.openTabs.length) {
-    return `<div class="empty-state"><b>No other tabs open</b>Pages you have open in Chrome show up here, ready to add to a theme.</div>`;
+    return `<div class="empty-state"><b>No other tabs open</b>Tabs you have open in Chrome show up here, ready to add to a theme.</div>`;
   }
   const row = (r) => `
     <li class="tab open-row" data-open-id="${r.id}">
@@ -751,7 +751,7 @@ const actions = {
   "add-link": (el) => {
     const th = themeById(themeId(el));
     popover(el, `
-      <label>Link <input type="url" placeholder="https://…" style="width:260px"></label>
+      <label>Link to the tab <input type="url" placeholder="https://…" style="width:260px"></label>
       <button data-choice="input">Add to “${esc(th.name)}”</button>`,
     async (url) => {
       if (!/^https?:\/\//i.test(url)) {

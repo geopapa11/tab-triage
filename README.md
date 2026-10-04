@@ -108,7 +108,7 @@ are never swept.
 many tabs are loaded, and how many windows are open.
 
 The dashboard has four views: **Themes** (your list, in priority order, with unranked themes
-below and Later ones at the bottom), **Open tabs** (every page open in Chrome right now),
+below and Later ones at the bottom), **Open tabs** (every tab open in Chrome right now),
 **Snoozed** and **Completed**.
 
 | To do this | Do this |
@@ -117,8 +117,8 @@ below and Later ones at the bottom), **Open tabs** (every page open in Chrome ri
 | Work on a theme | **Open N** opens its top tabs (6 by default) in a new window. |
 | Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
 | Add a tab that's open in Chrome | **Open tabs** view → **Add & close** or **Add, keep open** on its row → pick a theme, **Let Claude choose**, **On its own** (Unsorted) or **New theme…**. The row shows if the page is already saved. |
-| Add the page you're on, without the dashboard | Right-click **inside the page** → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
-| Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
+| Add the tab you're on, without the dashboard | Right-click **inside the page** → **Add this tab to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
+| Add a tab from a link | **+ Add tab** on a theme card, paste the link, press Enter. The title is filled in. |
 | Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days (by default), then is deleted. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
