@@ -8,6 +8,14 @@ from the dashboard: prioritize themes, open the tabs for one task, tick them off
 The result is a couple of Chrome windows with a handful of live tabs, a task list that doesn't
 depend on tabs staying open, and far less memory use.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+  <img src="docs/images/dashboard-light.png" width="900"
+       alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with tick boxes.">
+</picture>
+
+*The dashboard, shown with demo data.*
+
 Sorting is done by Claude through the Claude Code CLI on your **claude.ai subscription**. No API
 key is used, ever.
 
