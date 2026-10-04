@@ -122,7 +122,7 @@ below and Later ones at the bottom), **Open tabs** (every tab open in Chrome rig
 | Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days (by default), then is deleted. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
-| Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar at the top offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
+| Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar appears just above the topmost selected tab with **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |

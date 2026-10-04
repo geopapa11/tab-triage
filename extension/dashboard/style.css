@@ -333,7 +333,7 @@ a { color: inherit; }
 .tab:hover { background: color-mix(in srgb, var(--paper) 70%, transparent); }
 .tab.selected { background: var(--go-soft); box-shadow: inset 3px 0 0 var(--go); }
 .bulkbar {
-  position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 25;
+  position: fixed; left: 8px; top: 14px; z-index: 25; /* placed by positionBulkBar() */
   display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 16px;
   background: var(--card); border: 1px solid var(--rule-strong); border-radius: 12px;
   box-shadow: 0 16px 40px -14px rgba(0, 0, 0, .35);

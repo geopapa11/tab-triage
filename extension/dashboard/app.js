@@ -5,7 +5,7 @@ import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/ti
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
-import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll } from "../lib/select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll, barTop } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
 import { numberError, isDirty } from "../lib/settingsform.js";
 
@@ -1029,7 +1029,33 @@ function renderBulkBar() {
     <button class="btn small ghost" data-bulk="snooze" title="Hide the selected tabs until a date you pick.">Snooze</button>
     <button class="btn small ghost danger" data-bulk="remove" title="Remove the selected tabs from the list and close them in Chrome.">Remove</button>
     <button class="tool" data-bulk="clear" title="Clear the selection.">Clear</button>`;
+  positionBulkBar();
 }
+
+// The bar floats just above the topmost selected tab and follows it while you scroll. If that
+// tab is off screen, the bar waits at the nearest edge so the actions stay reachable.
+function positionBulkBar() {
+  const bar = $("bulkbar");
+  if (bar.hidden) return;
+  const row = document.querySelector(".tab.selected");
+  const width = bar.offsetWidth;
+  if (!row) {
+    bar.style.top = "14px";
+    bar.style.left = `${Math.max(8, (innerWidth - width) / 2)}px`;
+    return;
+  }
+  const r = row.getBoundingClientRect();
+  bar.style.top = `${barTop(r.top, bar.offsetHeight, innerHeight)}px`;
+  bar.style.left = `${Math.max(8, Math.min(r.left, innerWidth - width - 8))}px`;
+}
+
+let barFrame = 0;
+const followSelection = () => {
+  cancelAnimationFrame(barFrame);
+  barFrame = requestAnimationFrame(positionBulkBar);
+};
+addEventListener("scroll", followSelection, { passive: true });
+addEventListener("resize", followSelection);
 
 async function bulk(action, extra = {}) {
   const ids = [...S.selected];

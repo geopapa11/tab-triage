@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll } from "./select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll, barTop } from "./select.js";
 
 const rows = [11, 12, 13, 14, 15];
 
@@ -76,4 +76,18 @@ test("the theme checkbox selects all its tabs, or clears them when all are alrea
   assert.deepEqual([...toggleAll(new Set([9]), [1, 2])].sort(), [1, 2, 9]);
   assert.deepEqual([...toggleAll(new Set([1, 9]), [1, 2])].sort(), [1, 2, 9]);
   assert.deepEqual([...toggleAll(new Set([1, 2, 9]), [1, 2])], [9]);
+});
+
+// barTop: where the selection bar goes — just above the topmost selected row, kept on screen.
+test("the selection bar sits just above the topmost selected row", () => {
+  assert.equal(barTop(400, 48, 900), 400 - 48 - 6);
+});
+
+test("when that row is near or above the top edge, the bar stays at the top of the screen", () => {
+  assert.equal(barTop(30, 48, 900), 8);
+  assert.equal(barTop(-500, 48, 900), 8);
+});
+
+test("when that row is below the screen, the bar stays at the bottom", () => {
+  assert.equal(barTop(2000, 48, 900), 900 - 48 - 8);
 });

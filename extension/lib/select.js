@@ -50,3 +50,9 @@ export function toggleAll(selected, ids) {
   for (const id of ids) all ? next.delete(id) : next.add(id);
   return next;
 }
+
+// Viewport y for the selection bar: `gap` px above the topmost selected row, but never off screen.
+export function barTop(rowTop, barHeight, viewportHeight, gap = 6, margin = 8) {
+  const wanted = rowTop - barHeight - gap;
+  return Math.max(margin, Math.min(wanted, viewportHeight - barHeight - margin));
+}
