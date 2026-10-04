@@ -1,29 +1,40 @@
 # Architecture
 
-How Tab Triage works, for someone reading the code. For how to use it, see the
-[README](../README.md). For why it was designed this way, see [PLAN.md](PLAN.md).
+- **This page:** how Tab Triage works, for someone reading the code.
+- **How to use it:** the [README](../README.md).
+- **The database tables and columns:** [DATABASE.md](DATABASE.md).
+- **Why it was designed this way:** [PLAN.md](PLAN.md).
 
 ## The three parts
 
 ```mermaid
-flowchart LR
-  subgraph Chrome["Google Chrome"]
-    tabs["Your open tabs"]
-    worker["Background worker<br/>extension/background.js"]
-    dash["Dashboard page<br/>extension/dashboard/"]
+flowchart TB
+  subgraph chrome["Google Chrome"]
+    tabs["<b>Your open tabs</b>"]
+    worker["<b>Background worker</b><br/>watches your tabs,<br/>runs the sweep,<br/>closes and unloads tabs"]
+    dash["<b>Dashboard</b><br/>the page you work in"]
   end
-  subgraph Mac["Background service on your Mac (launchd)"]
-    server["Python server<br/>127.0.0.1:8765"]
-    db[("SQLite database<br/>tabs.db")]
-    claude["Claude CLI<br/>claude -p"]
+  subgraph mac["Your Mac (background service)"]
+    server["<b>Local server</b><br/>keeps the list,<br/>starts the sorting,<br/>measures Chrome's memory"]
+    db[("<b>Database</b><br/>one file, tabs.db")]
+    claude["<b>Claude Code CLI</b><br/>sorts tabs into themes,<br/>on your subscription"]
   end
-  tabs <-->|"read, close, unload"| worker
-  worker <-->|"sweep now, merge windows"| dash
-  worker <-->|"HTTP + JSON"| server
-  dash <-->|"HTTP + JSON"| server
-  server <--> db
-  server <-->|"sort tabs into themes"| claude
+  tabs <-->|"reads, closes, unloads"| worker
+  dash -->|"asks for anything<br/>that touches Chrome"| worker
+  worker <-->|"swept tabs,<br/>settings, memory"| server
+  dash <-->|"the list and<br/>every change to it"| server
+  server <-->|"reads and writes"| db
+  server <-->|"tabs to sort,<br/>themes back"| claude
 ```
+
+Read it from the top:
+
+1. The **background worker** is the only part that touches your tabs. It notices which ones you
+   haven't used, reads them, and later closes or unloads them.
+2. It hands the tabs it sweeps to the **local server**, which saves them in the **database**.
+3. The server asks the **Claude Code CLI** to sort the new tabs into themes and saves the answer.
+4. The **dashboard** shows the list by asking the server, and sends the server every change you
+   make. When a change needs Chrome (closing tabs, merging windows), it asks the worker.
 
 | Part | Code | Runs in | Responsible for |
 |---|---|---|---|
@@ -161,16 +172,9 @@ switched *to*.
 
 ### SQLite: `~/Library/Application Support/tab-triage/tabs.db`
 
-| Table | Columns that matter |
-|---|---|
-| `themes` | `name` (unique), `position` (rank; null = unranked), `suggested_position`, `touched_at` (for the stale badge), `snoozed_until`, `later`, `back` |
-| `tabs` | `url` (unique), `title`, `theme_id` (null = waiting to be sorted), `position`, `status` (`open` / `done` / `removed`), `captured_at`, `last_seen_at`, `completed_at`, `removed_at`, `snoozed_until`, `pending_close` (saved but still open in Chrome), `text`, `group_hint` |
-| `corrections` | `kind` (`move` / `rename` / `merge` / `dissolve`), `detail` (JSON) |
-| `settings` | `key`, `value` (JSON): every user setting (defaults and limits are in `server/settings.py`), plus the first-run date and the last sort error |
-
-Times are Unix seconds. New columns are added in place at startup (`Store._migrate`). Completed
-tabs are deleted after 45 days and removed tabs after 1 day (`Store.purge`, run on every sweep
-and every 6 hours).
+Four tables: `themes`, `tabs` (each tab points at its theme), `corrections` and `settings`.
+Every column, how the tables connect, and when rows are deleted are described in
+[DATABASE.md](DATABASE.md).
 
 ### Chrome extension storage
 
