@@ -8,11 +8,13 @@ from the dashboard: prioritize themes, open the tabs for one task, mark them don
 The result is a couple of Chrome windows with a handful of live tabs, a task list that doesn't
 depend on tabs staying open, and far less memory use.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
-  <img src="docs/images/dashboard-light.png" width="900"
-       alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with a checkbox to select and a Done button.">
-</picture>
+<a href="docs/images/dashboard-light.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+    <img src="docs/images/dashboard-light.png" width="900"
+         alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with a checkbox to select and a Done button.">
+  </picture>
+</a>
 
 *The dashboard, shown with demo data.*
 
@@ -69,14 +71,18 @@ subscription, or reports an API key, the sorting call is refused instead of bein
       of the address bar and click the pin next to **Tab Triage**. (With **Pin new extensions to
       Toolbar** switched on, as in the picture, the icon appears by itself.)
 
-      <img src="docs/images/install-pin.png" width="286"
-           alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right.">
+      <a href="docs/images/install-pin.png"><img src="docs/images/install-pin.png" width="286"
+           alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right."></a>
 
-   <picture>
-     <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
-     <img src="docs/images/install-extensions-light.png" width="800"
-          alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
-   </picture>
+   <a href="docs/images/install-extensions-light.png">
+     <picture>
+       <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
+       <img src="docs/images/install-extensions-light.png" width="800"
+            alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
+     </picture>
+   </a>
+
+   Click a picture to open it full size.
 
 3. Click the Tab Triage icon. The dashboard opens.
 
@@ -122,22 +128,29 @@ are never swept.
 **The header** shows the mode (First run / Dry-run / Live), tab memory against its budget, how
 many tabs are loaded, and how many windows are open.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
-  <img src="docs/images/header-light.png" width="760"
-       alt="The dashboard header: Mode Live, Tab memory 0.74 GB of a 2 GB budget, Live tabs 5 of 12, Windows 2 of 2, with the Sweep now, Merge windows, Export .md and Settings buttons.">
-</picture>
+<a href="docs/images/header-light.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
+    <img src="docs/images/header-light.png" width="760"
+         alt="The dashboard header: Mode Live, Tab memory 0.74 GB of a 2 GB budget, Live tabs 5 of 12, Windows 2 of 2, with the Sweep now, Merge windows, Export .md and Settings buttons.">
+  </picture>
+</a>
 
-The dashboard has four views: **Themes** (your list, in priority order, with unranked themes
+The dashboard has five views: **Themes** (your list, in priority order, with unranked themes
 below and Later ones at the bottom), **Open tabs** (every web page open in Chrome right now,
-except the dashboard itself and Chrome's own pages such as `chrome://extensions`), **Snoozed**
-and **Completed**.
+except the dashboard itself and Chrome's own pages such as `chrome://extensions`), **Snoozed**,
+**Kept** (every tab you chose to keep, by theme, including themes that have left the list) and
+**Completed**.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
-  <img src="docs/images/views-light.png" width="376"
-       alt="The view switcher: Themes, Open tabs, Snoozed and Completed, each with a count.">
-</picture>
+<a href="docs/images/views-light.png">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
+    <img src="docs/images/views-light.png" width="437"
+         alt="The view switcher: Themes, Open tabs, Snoozed, Kept and Completed, each with a count.">
+  </picture>
+</a>
+
+<br>
 
 | To do this | Do this |
 |---|---|
@@ -148,6 +161,7 @@ and **Completed**.
 | Add the tab you're on, without the dashboard | Right-click **inside the page** → **Add this tab to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab bar at the top of the window. |
 | Add a tab from a link | **+ Add tab**, at the top of a theme card or under its last tab. Paste the link and press Enter. The title is filled in. |
 | Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 60 days (by default), then is deleted for good. **Restore** brings it back. |
+| Keep a tab you've finished but want to read again | Hover over it and click **Keep** (also offered on rows in **Completed**). It moves to a **Kept** group at the bottom of its theme and is never deleted. It no longer counts as open work: **Open N**, **Mark all done** and the checkboxes skip it. **Stop keeping** moves it to Completed. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
 | Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar appears just above the topmost selected tab with **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
@@ -157,7 +171,7 @@ and **Completed**.
 | Combine themes | **⋯ → Merge into…**, then pick the theme from the searchable list. |
 | Finish a whole theme | **⋯ → Mark all done**. Reversible while the tabs are in Completed. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
-| Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already completed keep their history in Completed. **Undo** in the message brings everything back. |
+| Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already completed keep their history in Completed, and kept tabs stay in the Kept view. **Undo** in the message brings everything back. |
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
@@ -169,8 +183,13 @@ back. To clear the label without dropping the theme, use it: open, add, complete
 its tabs. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
 
-**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed (60 days by default)
-as a record. Remove it when it turned out not to be useful; it leaves no history.
+**Done, Keep or Remove:**
+
+- **✓ Done** when you've finished with a tab. It stays in Completed (60 days by default) as a
+  record, then is deleted.
+- **Keep** when you've finished with it but will want to read it again. It stays with its theme
+  and is never deleted.
+- **Remove** when it turned out not to be useful. It leaves no history.
 
 Your corrections (moving a tab to another theme, renaming, merging, dissolving) are passed to
 Claude on later sweeps so it stops repeating the same mistake.
@@ -191,7 +210,8 @@ takes stale tabs; **Sweep now** and the first run take every tab that isn't prot
 - any tab you used after it was saved
 
 **Saved to the dashboard, then closed:** every other stale tab. Gmail threads go to an
-"Email follow-ups" theme by subject line only.
+"Email follow-ups" theme by subject line only. A kept tab that you opened again is closed the
+same way and stays kept; a completed one becomes open work again.
 
 **Closed without saving:**
 - exact duplicates of another open tab, at any age (the most recently used copy stays)
