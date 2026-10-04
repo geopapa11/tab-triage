@@ -35,7 +35,9 @@ key is used, ever.
 ## What you need
 
 - **macOS** and **Google Chrome**. The server runs as a macOS login job; other systems aren't
-  supported.
+  supported. Other browsers are untested: Chromium-based ones (Edge, Brave, Opera, Arc) can load
+  the extension but the memory reading only looks at Chrome's processes, and Firefox and Safari
+  would need a port.
 - **[uv](https://docs.astral.sh/uv/)**, which runs the server (it fetches Python 3.12+ itself).
 - **[Claude Code](https://claude.com/claude-code)** installed at `~/.local/bin/claude` and logged
   in with a claude.ai subscription. Check with `claude auth status`: it should say
@@ -120,7 +122,7 @@ below and Later ones at the bottom), **Open tabs** (every page open in Chrome ri
 | Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
-| Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
+| Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar at the top offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |
@@ -209,8 +211,9 @@ The server listens on `127.0.0.1` only and refuses requests from web pages.
 
 ## Settings
 
-The ⚙ button on the dashboard. Each field has a short explanation and its allowed range; values
-outside the range are rejected. The numbers used elsewhere in this README (96 hours, 19:00,
+The ⚙ button on the dashboard. Each field has a short explanation and its allowed range; a value
+outside the range is flagged under the field and not saved. **Save** keeps the panel open; click
+outside it (or **Close**) to leave, and it asks first if you have unsaved changes. The numbers used elsewhere in this README (96 hours, 19:00,
 45 days, and so on) are the defaults.
 
 | Setting | Default | Range | What it does |
@@ -222,8 +225,8 @@ outside the range are rejected. The numbers used elsewhere in this README (96 ho
 | Snoozed items wake at | 08:00 | any time | Time of day a snoozed tab or theme comes back. |
 | Sorting model | `sonnet` | | A Claude Code model alias, so it follows new versions. Falls back to `haiku` if unavailable. |
 | Maximum themes | 15 | 5–60 | Claude stops creating themes at this count. Raise it if you have many Chrome tab groups: each becomes a theme and counts. |
-| Tab memory budget | 1024 MB | 256 and up | Above this, the memory guard unloads tabs. |
-| Never unload a tab used in the last | 24 hours | 0–168 | Keeps recently used tabs loaded so they don't reload when you return. |
+| Tab memory budget | 1024 MB | 256 and up | Above this, Chrome frees the memory of tabs you haven't used recently. They stay in the tab strip and reload when clicked; nothing is closed. |
+| Keep tabs in memory if used in the last | 24 hours | 0–168 | Tabs used more recently than this are never freed from memory, so they don't reload when you return. |
 | Keep open | Gmail inbox, Calendar, Linear | | URL patterns never closed. One per line; `*` matches anything. |
 | Never read page text | see [Privacy](#privacy-what-is-sent-to-claude) | | URL patterns whose page text is never sent. |
 

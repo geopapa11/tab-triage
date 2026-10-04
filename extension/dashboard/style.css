@@ -333,7 +333,7 @@ a { color: inherit; }
 .tab:hover { background: color-mix(in srgb, var(--paper) 70%, transparent); }
 .tab.selected { background: var(--go-soft); box-shadow: inset 3px 0 0 var(--go); }
 .bulkbar {
-  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 25;
+  position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 25;
   display: flex; align-items: center; gap: 8px; padding: 8px 10px 8px 16px;
   background: var(--card); border: 1px solid var(--rule-strong); border-radius: 12px;
   box-shadow: 0 16px 40px -14px rgba(0, 0, 0, .35);
@@ -342,8 +342,7 @@ a { color: inherit; }
 .bulk-count { font: 600 12px var(--mono); margin-right: 6px; }
 .btn.danger { color: var(--signal); border-color: var(--signal); }
 .popover button.danger { color: var(--signal); }
-.bulk-on .toast { bottom: 84px; }
-.bulk-on { padding-bottom: 160px; }
+.reordering .bulkbar { display: none; }
 
 /* --- popover, settings, toast ------------------------------------------------------- */
 
@@ -384,6 +383,9 @@ a { color: inherit; }
 .settings .range { color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
 .settings details.advanced { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--rule); }
 .settings details.advanced summary { cursor: pointer; font: 600 15px var(--serif); }
+.settings input.invalid { border-color: var(--signal); box-shadow: 0 0 0 1px var(--signal); }
+.settings .field-error, .settings .form-error { color: var(--signal); font-size: 12px; font-weight: 600; margin: 6px 0 0; }
+.settings .form-error { margin-top: 18px; }
 .settings .help { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
 .settings .row { display: flex; gap: 8px; margin-top: 22px; }
 
@@ -392,6 +394,7 @@ a { color: inherit; }
   background: var(--ink); color: var(--paper); padding: 9px 16px; border-radius: 999px;
   font-size: 13px; font-weight: 500; pointer-events: none;
   transition: opacity .25s var(--ease), transform .25s var(--ease);
+  z-index: 60;
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .toast.has-action { pointer-events: auto; }

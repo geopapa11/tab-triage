@@ -7,6 +7,7 @@ import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
 import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
+import { numberError, isDirty } from "../lib/settingsform.js";
 
 const DAY_S = 86400;
 const LIVE_TAB_BUDGET = 12;
@@ -151,17 +152,17 @@ function renderInstruments() {
       <div class="label"><span>Mode</span></div>
       <div class="value"><span class="pill ${mode.cls}">${esc(mode.label)}</span></div>
     </div>
-    <div class="gauge" title="Memory of web-page tabs — the part unloading tabs can reduce. Above the budget, least-recently-used tabs are unloaded. The Chrome total also counts the browser itself, GPU, network and extensions (and over-counts shared memory).">
+    <div class="gauge" title="Memory used by web pages. Above the budget, Chrome frees the memory of tabs you have not used recently; they stay in the tab strip and reload when clicked. The Chrome total also counts the browser itself, the GPU process and extensions.">
       <div class="label"><span>Tab memory</span><span>budget ${+(cap / 1024 ** 3).toFixed(2)} GB</span></div>
       <div class="value">${gb(tabsMem)} GB <span class="sub-value">· Chrome total ${gb(total)} GB</span></div>
       <div class="meter ${memCls}"><i style="width:${pct}%"></i></div>
     </div>
-    <div class="gauge" title="Loaded tabs across all windows">
+    <div class="gauge" title="Tabs currently loaded in memory, across all windows.">
       <div class="label"><span>Live tabs</span><span>budget ${LIVE_TAB_BUDGET}</span></div>
       <div class="value">${S.liveTabs}</div>
       <div class="meter ${S.liveTabs > LIVE_TAB_BUDGET ? "over" : ""}"><i style="width:${tabPct}%"></i></div>
     </div>
-    <div class="gauge" title="Normal Chrome windows. Merge windows gathers tabs into a work window and an inbox window.">
+    <div class="gauge" title="Open Chrome windows. Merge windows brings them down to two.">
       <div class="label"><span>Windows</span><span>budget 2</span></div>
       <div class="value">${S.windows}</div>
       <div class="meter ${S.windows > 2 ? "over" : ""}"><i style="width:${Math.min(100, (S.windows / 2) * 100)}%"></i></div>
@@ -179,7 +180,7 @@ function renderBanners() {
       `<p><strong>Can't reach the local server.</strong> It should start at login. Run
        <code>scripts/install.sh</code> in the tab-triage folder, or start it by hand with
        <code>uv run python -m server</code>.</p>`,
-      `<button class="btn ghost small" data-action="retry">Retry</button>`));
+      `<button class="btn ghost small" data-action="retry" title="Try to reach the server again.">Retry</button>`));
     $("banners").innerHTML = out.join("");
     return;
   }
@@ -195,17 +196,17 @@ function renderBanners() {
       ? "Claude isn't logged in with your subscription, so nothing was sent. Run <code>claude auth login</code> in a terminal, then re-sort."
       : esc(e.message);
     out.push(banner("signal", `<p><strong>Sorting failed</strong> — tabs were saved to Unsorted. ${why}</p>`,
-      `<button class="btn ghost small" data-action="resort">Re-sort</button>`));
+      `<button class="btn ghost small" data-action="resort" title="Sort the Unsorted tabs into themes again.">Re-sort</button>`));
   }
   if (st.mode === "first-run") {
     if (!S.lastSweep && !S.pending) {
       out.push(banner("signal",
         `<p><strong>First run.</strong> Sweep every open tab (except pinned, active, playing audio, keep-open and half-filled forms) into themes. Nothing closes until you approve.</p>`,
-        `<button class="btn signal" data-action="sweep-now">Run first sweep</button>`));
+        `<button class="btn signal" data-action="sweep-now" title="Save and sort every unprotected tab. Closes nothing.">Run first sweep</button>`));
     } else {
       out.push(banner("signal",
         `<p><strong>${S.pending} tabs saved into ${nThemes} themes</strong>${dropped ? `, plus ${dropped} duplicates and junk tabs to drop` : ""}. Look the themes over, fix anything misplaced, then close them all.</p>`,
-        `<button class="btn signal" data-action="approve" ${S.pending + dropped ? "" : "disabled"}>Approve &amp; close ${S.pending + dropped}</button>`));
+        `<button class="btn signal" data-action="approve" title="Close the saved tabs, duplicates and junk in Chrome." ${S.pending + dropped ? "" : "disabled"}>Approve &amp; close ${S.pending + dropped}</button>`));
     }
   } else if (st.mode === "dry-run") {
     if (st.auto_close_tomorrow) {
@@ -214,7 +215,7 @@ function renderBanners() {
     if (S.pending) {
       out.push(banner("amber",
         `<p><strong>Dry-run:</strong> ${S.pending} stale tabs are saved here but still open in Chrome.</p>`,
-        `<button class="btn ghost small" data-action="approve">Close them now</button>`));
+        `<button class="btn ghost small" data-action="approve" title="Close the saved tabs in Chrome.">Close them now</button>`));
     }
   }
   $("banners").innerHTML = out.join("");
@@ -231,6 +232,8 @@ function renderViews() {
   for (const b of $("views").querySelectorAll("button")) {
     const v = b.dataset.view;
     b.setAttribute("aria-current", v === S.view ? "page" : "false");
+    b.title = { themes: "Your saved tabs, by theme.", open: "Pages open in Chrome right now.",
+      snoozed: "Tabs and themes hidden until a date.", completed: "Tabs you marked as done." }[v] ?? "";
     b.innerHTML = `${esc(labels[v] ?? v)}${counts[v] != null ? `<span class="count">${counts[v]}</span>` : ""}`;
   }
 }
@@ -240,17 +243,17 @@ function tabRow(t, { theme = null, done = false } = {}) {
   if (theme) sub.unshift(`<span class="theme-chip">${esc(theme)}</span>`);
   if (t.pending_close) sub.push(`<span class="open-dot">● still open in Chrome</span>`);
   if (t.snoozed_until) sub.push(`wakes ${dayLabel(t.snoozed_until, Date.now())} ${hhmm(t.snoozed_until)}`);
-  const remove = `<button class="tool" data-action="remove-tab" title="Not useful after all: take it off the list (no Completed history) and close it in Chrome">Remove</button>`;
+  const remove = `<button class="tool" data-action="remove-tab" title="Remove from the list and close the tab in Chrome. Not kept in Completed.">Remove</button>`;
   // Hover tools, then the one action that is always visible.
   const hover = done ? ""
-    : t.snoozed_until ? `<button class="tool" data-action="wake-tab">Wake now</button>${remove}`
-    : `<button class="tool" data-action="snooze-tab">Snooze</button>${remove}`;
+    : t.snoozed_until ? `<button class="tool" data-action="wake-tab" title="End the snooze now.">Wake now</button>${remove}`
+    : `<button class="tool" data-action="snooze-tab" title="Hide until a date you pick.">Snooze</button>${remove}`;
   const primary = done
-    ? `<button class="tool" data-action="uncheck" title="Bring it back to its theme">Restore</button>`
-    : `<button class="tool done-btn" data-action="check" title="Finished with it: keep it in Completed">✓ Done</button>`;
+    ? `<button class="tool" data-action="uncheck" title="Move back to its theme as an open tab.">Restore</button>`
+    : `<button class="tool done-btn" data-action="check" title="Mark as done. Kept in Completed for ${S.state.settings.done_retention_days} days.">✓ Done</button>`;
   const box = done
     ? `<span class="tick" role="img" aria-label="Completed"></span>`
-    : `<button class="check" data-action="pick" aria-label="Select this tab" title="Select (shift-click for a range)"></button>`;
+    : `<button class="check" data-action="pick" aria-label="Select this tab" title="Select. Shift-click selects a range."></button>`;
   return `
     <li class="tab ${t.status} ${t.back ? "back" : ""} ${S.selected.has(t.id) ? "selected" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
         draggable="${!done && !t.snoozed_until && !theme}">
@@ -281,18 +284,18 @@ function themeCard(th, i) {
       </div>
       <div class="theme-body">
         <div class="theme-head">
-          <button class="check all" data-action="pick-theme" aria-label="Select all tabs in this theme" title="Select all tabs in this theme"></button>
-          <h2 class="theme-name" data-action="rename" title="Click to rename">${esc(th.name)}</h2>
+          <button class="check all" data-action="pick-theme" aria-label="Select all tabs in this theme" title="Select all tabs in this theme."></button>
+          <h2 class="theme-name" data-action="rename" title="Click to rename.">${esc(th.name)}</h2>
           ${badges}
           <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
           <div class="theme-tools">
-            ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Ask Claude to sort these tabs again">Re-sort</button>` : ""}
-            <button class="tool" data-action="open-theme">Open ${Math.min(S.state.settings.open_tabs_max, open.length)}</button>
-            <button class="tool" data-action="add-link" title="Paste a link to add it to this theme">+ Add link</button>
-            <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
-            <button class="tool" data-action="snooze-theme">Snooze</button>
-            ${th.name === "Unsorted" ? "" : `<button class="tool warn" data-action="remove-theme" title="Remove every tab in this theme (not useful after all). Undo is offered.">Remove</button>`}
-            <button class="tool" data-action="theme-menu" aria-label="More">⋯</button>
+            ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Sort these tabs into themes again.">Re-sort</button>` : ""}
+            <button class="tool" data-action="open-theme" title="Open the top ${Math.min(S.state.settings.open_tabs_max, open.length)} tabs in a new window.">Open ${Math.min(S.state.settings.open_tabs_max, open.length)}</button>
+            <button class="tool" data-action="add-link" title="Add a link to this theme.">+ Add link</button>
+            <button class="tool" data-action="later" title="Collapse this theme into the Later list at the bottom.">Later</button>
+            <button class="tool" data-action="snooze-theme" title="Hide this theme until a date you pick.">Snooze</button>
+            ${th.name === "Unsorted" ? "" : `<button class="tool warn" data-action="remove-theme" title="Remove all tabs in this theme and close them in Chrome. Can be undone.">Remove</button>`}
+            <button class="tool" data-action="theme-menu" aria-label="More actions" title="More actions: reorder, rename, mark all done, dissolve, merge.">⋯</button>
           </div>
         </div>
         ${merges.map((m) => `
@@ -303,7 +306,7 @@ function themeCard(th, i) {
           </div>`).join("")}
         <ul class="tabs" data-theme-name="${esc(th.name)}">${open.map((t) => tabRow(t)).join("")}</ul>
         ${done.length ? `
-          <button class="done-toggle" data-action="toggle-done">${expanded ? "▾" : "▸"} ${done.length} completed</button>
+          <button class="done-toggle" data-action="toggle-done" title="Show or hide this theme's completed tabs.">${expanded ? "▾" : "▸"} ${done.length} completed</button>
           ${expanded ? `<ul class="tabs done-list">${done.map((t) => tabRow(t, { done: true })).join("")}</ul>` : ""}` : ""}
       </div>
     </li>`;
@@ -329,7 +332,7 @@ function renderThemes() {
       <div class="zone-label">Later · ${later.length}</div>
       <ul class="later-list">${later.map((th) => `
         <li data-theme-id="${th.id}">
-          <button class="later-row" data-action="unlater" title="Bring it back to its place in your priorities">
+          <button class="later-row" data-action="unlater" title="Move this theme back to its place in the list.">
             <span class="later-name">${esc(th.name)}</span>
             <span class="theme-meta">${th.tabs.filter((t) => t.status === "open").length} open</span>
             <span class="later-back">Bring back ↑</span>
@@ -353,8 +356,8 @@ function renderOpen() {
           r.savedIn ? `already in <span class="theme-chip">${esc(r.savedIn)}</span>` : "not saved yet"}</div>
       </div>
       <div class="row-tools" style="opacity:1">
-        <button class="tool" data-action="add-open" data-close="1">Add &amp; close</button>
-        <button class="tool" data-action="add-open">Add, keep open</button>
+        <button class="tool" data-action="add-open" data-close="1" title="Save to a theme and close the tab in Chrome.">Add &amp; close</button>
+        <button class="tool" data-action="add-open" title="Save to a theme and leave the tab open.">Add, keep open</button>
       </div>
     </li>`;
   return `<div class="ledger">
@@ -374,7 +377,7 @@ function renderSnoozed() {
       <span></span><span></span>
       <div class="title"><strong>${esc(th.name)}</strong>
         <div class="sub">${th.tabs.filter((t) => t.status === "open").length} tabs · wakes ${dayLabel(th.snoozed_until, Date.now())} ${hhmm(th.snoozed_until)}</div></div>
-      <div class="row-tools" style="opacity:1"><button class="tool" data-action="wake-theme">Wake now</button></div>
+      <div class="row-tools" style="opacity:1"><button class="tool" data-action="wake-theme" title="End the snooze now.">Wake now</button></div>
     </li>`).join("");
   return `<div class="ledger">
     ${themes.length ? `<h3>Themes</h3><ul class="tabs">${themeRows}</ul>` : ""}
@@ -572,6 +575,7 @@ function numberField(key, label, help, { min, max, step = 1, unit = "" }) {
   return `
     <label for="set-${key}">${label}${unit ? ` (${unit})` : ""}</label>
     <input id="set-${key}" type="number" min="${min}" max="${max}" step="${step}" value="${v}" data-setting="${key}">
+    <p class="field-error" hidden></p>
     <p class="help">${help} <span class="range">${min}–${max}.</span></p>`;
 }
 
@@ -604,8 +608,8 @@ function renderSettings() {
     ${numberField("max_themes", "Maximum themes", "New themes stop being created at this count; extra tabs go to Unsorted. Merge themes to make room.", { min: 5, max: 60 })}
 
     <h3>Memory</h3>
-    ${numberField("tab_memory_cap_mb", "Tab memory budget", "Above this, least-recently-used tabs are unloaded (not closed), keep-open tabs last.", { min: 256, max: 65536, step: 128, unit: "MB" })}
-    ${numberField("unload_idle_hours", "Never unload a tab used in the last", "Protects tabs you used recently from being unloaded, so they don't reload when you return. 0 turns the protection off.", { min: 0, max: 168, unit: "hours" })}
+    ${numberField("tab_memory_cap_mb", "Tab memory budget", "Above this, Chrome frees the memory of tabs you haven't used recently. They stay in the tab strip and reload when you click them. Nothing is closed.", { min: 256, max: 65536, step: 128, unit: "MB" })}
+    ${numberField("unload_idle_hours", "Keep tabs in memory if used in the last", "Tabs used more recently than this are never freed from memory, so they don't reload when you return. 0 turns this off.", { min: 0, max: 168, unit: "hours" })}
 
     <h3>Which tabs</h3>
     <label for="set-keep">Keep open — never closed</label>
@@ -624,10 +628,30 @@ function renderSettings() {
       ${numberField("batch_size", "Tabs per Claude call", "Larger batches sort faster but give Claude more to juggle at once.", { min: 5, max: 50, unit: "tabs" })}
     </details>
 
+    <p class="form-error" id="settings-error" hidden></p>
     <div class="row">
-      <button class="btn" data-action="save-settings">Save</button>
-      <button class="btn ghost" data-action="toggle-settings">Close</button>
+      <button class="btn" data-action="save-settings" title="Save these settings. The panel stays open.">Save</button>
+      <button class="btn ghost" data-action="toggle-settings" title="Close Settings.">Close</button>
     </div>`;
+  S.settingsSaved = collectSettings();
+}
+
+// What the form currently holds, in the shape the server expects.
+function collectSettings() {
+  const values = { model: $("set-model").value, keep_open: lines("set-keep"), never_read: lines("set-never") };
+  for (const input of $("settings").querySelectorAll("[data-setting]")) {
+    values[input.dataset.setting] = input.type === "number" ? Number(input.value) : input.value;
+  }
+  return values;
+}
+
+// Close the panel; with unsaved changes, ask first. Returns false if the user chose to stay.
+function closeSettings() {
+  const panel = $("settings");
+  if (panel.hidden) return true;
+  if (isDirty(S.settingsSaved, collectSettings()) && !confirm("Close Settings without saving your changes?")) return false;
+  panel.hidden = true;
+  return true;
 }
 
 const lines = (id) => $(id).value.split("\n").map((l) => l.trim()).filter(Boolean);
@@ -869,26 +893,44 @@ const actions = {
   },
   "toggle-settings": () => {
     const panel = $("settings");
-    if (panel.hidden && S.state) renderSettings();
-    panel.hidden = !panel.hidden;
+    if (!panel.hidden) {
+      closeSettings();
+    } else if (S.state) {
+      renderSettings();
+      panel.hidden = false;
+    }
   },
   "save-settings": async () => {
-    const values = { model: $("set-model").value, keep_open: lines("set-keep"), never_read: lines("set-never") };
-    for (const input of $("settings").querySelectorAll("[data-setting]")) {
-      values[input.dataset.setting] = input.type === "number" ? Number(input.value) : input.value;
+    const panel = $("settings");
+    const formError = $("settings-error");
+    formError.hidden = true;
+    // Check every number against its limits and say what is wrong right under the field.
+    let firstBad = null;
+    for (const input of panel.querySelectorAll('input[type="number"][data-setting]')) {
+      const problem = numberError(input.value, Number(input.min), Number(input.max));
+      const slot = input.nextElementSibling;
+      slot.textContent = problem ?? "";
+      slot.hidden = !problem;
+      input.classList.toggle("invalid", !!problem);
+      if (problem && !firstBad) firstBad = input;
     }
+    if (firstBad) {
+      const advanced = firstBad.closest("details");
+      if (advanced) advanced.open = true;
+      firstBad.focus();
+      firstBad.scrollIntoView({ block: "center" });
+      return;
+    }
+    const values = collectSettings();
     try {
       await api("PATCH", "/api/settings", values);
     } catch (e) {
-      // The server names the field and its limits, e.g. "open_tabs_max must be a whole number from 1 to 12".
-      let why = /"error": "([^"]+)"/.exec(e.message)?.[1] ?? e.message;
-      const label = $("settings").querySelector(`label[for="set-${why.split(" ")[0]}"]`)?.textContent;
-      if (label) why = why.replace(why.split(" ")[0], label.replace(/ \(.*\)$/, "")); // label, not key
-      toast(`Not saved: ${why}`);
+      formError.textContent = `Not saved: ${/"error": "([^"]+)"/.exec(e.message)?.[1] ?? e.message}`;
+      formError.hidden = false;
       return;
     }
+    S.settingsSaved = values;                                                    // no longer "unsaved"
     await chrome.runtime.sendMessage({ type: "settingsChanged" }).catch(() => {}); // re-time the alarms
-    $("settings").hidden = true;
     toast("Settings saved.");
     await refresh();
   },
@@ -898,6 +940,12 @@ const tabId = (el) => Number(el.closest("[data-tab-id]").dataset.tabId);
 const themeId = (el) => Number(el.closest("[data-theme-id]").dataset.themeId);
 
 document.addEventListener("click", (e) => {
+  // A click outside the Settings panel closes it and does nothing else.
+  if (!$("settings").hidden && !e.target.closest('#settings, #toast, [data-action="toggle-settings"]')) {
+    closeSettings();
+    e.stopImmediatePropagation(); // the click must not also trigger whatever was under it
+    return;
+  }
   if (!$("popover").hidden && !e.target.closest("#popover")) closePopover();
   const view = e.target.closest("[data-view]");
   if (view) {
@@ -954,6 +1002,7 @@ document.addEventListener("mousedown", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
+    if (!$("settings").hidden) return void closeSettings();
     closePopover();
     clearSelection();
   }
@@ -975,11 +1024,11 @@ function renderBulkBar() {
   if (!n) return;
   bar.innerHTML = `
     <span class="bulk-count">${n} selected</span>
-    <button class="btn small" data-bulk="check">Done</button>
-    <button class="btn small ghost" data-bulk="move">Move to…</button>
-    <button class="btn small ghost" data-bulk="snooze">Snooze</button>
-    <button class="btn small ghost danger" data-bulk="remove">Remove</button>
-    <button class="tool" data-bulk="clear">Clear</button>`;
+    <button class="btn small" data-bulk="check" title="Mark the selected tabs as done.">Done</button>
+    <button class="btn small ghost" data-bulk="move" title="Move the selected tabs to another theme.">Move to…</button>
+    <button class="btn small ghost" data-bulk="snooze" title="Hide the selected tabs until a date you pick.">Snooze</button>
+    <button class="btn small ghost danger" data-bulk="remove" title="Remove the selected tabs from the list and close them in Chrome.">Remove</button>
+    <button class="tool" data-bulk="clear" title="Clear the selection.">Clear</button>`;
 }
 
 async function bulk(action, extra = {}) {
