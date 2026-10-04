@@ -59,10 +59,19 @@ key is used, ever.
    `claude login ok` when it works.
 
 2. Load the extension in Chrome:
-   1. Open `chrome://extensions`.
-   2. Turn on **Developer mode** (top right).
-   3. Click **Load unpacked** and pick the repo's `extension/` folder.
-   4. Open the puzzle-piece menu in Chrome's toolbar and pin **Tab Triage**.
+   1. Type `chrome://extensions` in the address bar and press Enter.
+   2. Turn on **Developer mode**, the switch at the top right (① in the picture).
+   3. Click **Load unpacked**, which appears at the top left once Developer mode is on (②), and
+      pick the repo's `extension/` folder. In the file dialog, ⌘⇧G lets you paste the path.
+   4. If the Tab Triage icon isn't in Chrome's toolbar, click the puzzle-piece icon at the right
+      of the address bar and click the pin next to **Tab Triage**. (With **Pin new extensions to
+      Toolbar** switched on, as in the picture, the icon appears by itself.)
+
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
+     <img src="docs/images/install-extensions-light.png" width="800"
+          alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
+   </picture>
 
 3. Click the Tab Triage icon. The dashboard opens.
 
@@ -92,7 +101,7 @@ You don't start anything.
 
 | | |
 |---|---|
-| **Every day at 19:00** | Tabs untouched for 96 hours are saved, sorted and (after the dry-run week) closed. Both the time and the 96 hours are [settings](#settings). |
+| **Every day at 19:00** | Tabs untouched for 96 hours are saved, sorted and (after the dry-run week) closed. Both the time and the 96 hours are [settings](#settings). The time is your Mac's local time, and follows you when you change time zone. |
 | **Laptop asleep at 19:00** | The sweep runs when it wakes. |
 | **Chrome closed or laptop off at 19:00** | The sweep runs when you next open Chrome, if none ran in the last 24 hours. |
 | **After a restart** | The server starts at login; the extension loads with Chrome. |
