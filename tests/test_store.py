@@ -117,12 +117,12 @@ def test_completed_is_newest_first(store, clock):
     assert [t["title"] for t in store.completed()] == ["https://b", "https://a"]
 
 
-def test_purge_removes_done_tabs_after_45_days_only(store, clock):
+def test_purge_removes_done_tabs_after_60_days_only(store, clock):
     a, b = add_to_theme(store, "SQL", "https://a", "https://b")
     store.check(a)
     clock.advance(1)
     store.check(b)
-    clock.advance(44.5)  # a is 45.5 days old, b is 44.5
+    clock.advance(59.5)  # a is 60.5 days old, b is 59.5
     store.purge()
     assert [t["title"] for t in store.completed()] == ["https://b"]
 
@@ -159,9 +159,9 @@ def test_acting_on_a_back_tab_clears_the_marker(store, clock):
 
 # --- staleness ------------------------------------------------------------------
 
-def test_theme_untouched_for_7_days_is_stale(store, clock):
+def test_theme_untouched_for_14_days_is_stale(store, clock):
     add_to_theme(store, "SQL", "https://a")
-    clock.advance(6.9)
+    clock.advance(13.9)
     assert board_theme(store.board(), "SQL")["stale"] is False
     clock.advance(0.2)
     assert board_theme(store.board(), "SQL")["stale"] is True
@@ -170,7 +170,7 @@ def test_theme_untouched_for_7_days_is_stale(store, clock):
 @pytest.mark.parametrize("action", ["check", "snooze", "opened", "added"])
 def test_touching_a_theme_resets_staleness(store, clock, action):
     a, b = add_to_theme(store, "SQL", "https://a", "https://b")
-    clock.advance(8)
+    clock.advance(15)
     if action == "check":
         store.check(a)
     elif action == "snooze":

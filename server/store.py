@@ -10,9 +10,9 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
+from . import settings
+
 DAY = 86_400.0
-DONE_RETENTION = 45 * DAY
-STALE_AFTER = 7 * DAY
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS themes (
@@ -405,7 +405,7 @@ class Store:
         with self._lock, self._db:
             self._db.execute(
                 "DELETE FROM tabs WHERE status = 'done' AND completed_at < ?",
-                (self.now() - self.get_setting("done_retention_days", DONE_RETENTION / DAY) * DAY,),
+                (self.now() - settings.get(self, "done_retention_days") * DAY,),
             )
             self._db.execute(
                 "DELETE FROM tabs WHERE status = 'removed' AND removed_at < ?", (self.now() - DAY,)
@@ -427,7 +427,7 @@ class Store:
         return d
 
     def _theme_dict(self, th, tabs):
-        stale_after = self.get_setting("theme_stale_days", STALE_AFTER / DAY) * DAY
+        stale_after = settings.get(self, "theme_stale_days") * DAY
         return {
             "id": th["id"],
             "name": th["name"],

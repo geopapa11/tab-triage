@@ -8,7 +8,7 @@ import re
 DEFAULT_SETTINGS = {
     "model": "sonnet",
     "fallback_model": "haiku",
-    "tab_memory_cap_mb": 1024,
+    "tab_memory_cap_mb": 2048,
     "max_themes": 15,
     "keep_open": [
         "https://mail.google.com/mail/u/*/#inbox",
@@ -29,12 +29,12 @@ DEFAULT_SETTINGS = {
     # everyday
     "stale_hours": 96,            # a tab is swept after this long untouched
     "sweep_time": "19:00",        # daily sweep, local time
-    "done_retention_days": 45,    # Completed history
+    "done_retention_days": 60,    # Completed history
     "snooze_time": "08:00",       # when snoozed items wake
     "open_tabs_max": 6,           # "Open N" on a theme
     "unload_idle_hours": 24,      # memory guard never unloads tabs used more recently
     # advanced
-    "theme_stale_days": 7,        # "Stale — drop it?" badge
+    "theme_stale_days": 14,       # "Stale — drop it?" badge
     "memory_check_minutes": 5,
     "min_tabs_new_theme": 2,
     "text_chars": 1500,           # page text sent to Claude per tab

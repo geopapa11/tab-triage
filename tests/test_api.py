@@ -195,7 +195,7 @@ def test_settings_only_accept_known_keys(env):
 def test_memory_guard_compares_tab_memory_with_tab_budget(env):
     assert call(env, "GET", "/api/memory")[1] == {
         "chrome_bytes": 2_000_000_000, "tabs_bytes": 900_000_000,
-        "tab_cap_bytes": 1024 * 1024 * 1024, "over": False,
+        "tab_cap_bytes": 2048 * 1024 * 1024, "over": False,
     }
     call(env, "PATCH", "/api/settings", {"tab_memory_cap_mb": 512})
     assert call(env, "GET", "/api/memory")[1]["over"] is True
@@ -366,12 +366,12 @@ def test_settings_are_validated_against_their_limits(env, key, good, bad):
     assert call(env, "GET", "/api/state")[1]["settings"][key] == good
 
 
-def test_defaults_match_the_original_fixed_values(env):
+def test_defaults(env):
     s = call(env, "GET", "/api/state")[1]["settings"]
     assert {k: s[k] for k in ("done_retention_days", "stale_hours", "theme_stale_days", "unload_idle_hours",
                               "memory_check_minutes", "open_tabs_max", "min_tabs_new_theme", "text_chars",
-                              "batch_size", "sweep_time", "snooze_time")} == {
-        "done_retention_days": 45, "stale_hours": 96, "theme_stale_days": 7, "unload_idle_hours": 24,
+                              "batch_size", "sweep_time", "snooze_time", "tab_memory_cap_mb")} == {
+        "done_retention_days": 60, "stale_hours": 96, "theme_stale_days": 14, "unload_idle_hours": 24,
         "memory_check_minutes": 5, "open_tabs_max": 6, "min_tabs_new_theme": 2, "text_chars": 1500,
-        "batch_size": 40, "sweep_time": "19:00", "snooze_time": "08:00",
+        "batch_size": 40, "sweep_time": "19:00", "snooze_time": "08:00", "tab_memory_cap_mb": 2048,
     }
