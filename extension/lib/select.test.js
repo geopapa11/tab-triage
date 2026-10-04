@@ -28,8 +28,8 @@ test("the picker lists visible, Later and snoozed themes, labelled", () => {
   assert.deepEqual(pickerThemes(board), [
     { id: 1, name: "Team PRs", note: "" },
     { id: 2, name: "Unsorted", note: "" },
-    { id: 3, name: "Home repairs", note: "Later" },
-    { id: 4, name: "Taxes", note: "Snoozed" },
+    { id: 3, name: "Home repairs", note: "in Later" },
+    { id: 4, name: "Taxes", note: "snoozed" },
   ]);
 });
 

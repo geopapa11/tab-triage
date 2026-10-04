@@ -10,7 +10,7 @@ export function rangeIds(visibleIds, anchorId, clickedId) {
 // (labelled), so a parked theme can still receive tabs.
 export function pickerThemes(board, excludeId = null) {
   const tag = (list, note) => (list || []).map((t) => ({ id: t.id, name: t.name, note }));
-  return [...tag(board.themes, ""), ...tag(board.later_themes, "Later"), ...tag(board.snoozed_themes, "Snoozed")]
+  return [...tag(board.themes, ""), ...tag(board.later_themes, "in Later"), ...tag(board.snoozed_themes, "snoozed")]
     .filter((t) => t.id !== excludeId);
 }
 
