@@ -1,6 +1,8 @@
 // Capture chrome://extensions for the README's install step, from a temporary Chrome with an
 // empty profile (so no personal extensions appear), with Developer mode switched on and the two
-// controls a new user needs ringed and numbered.
+// controls a new user needs ringed and numbered. The window is only as wide as the README shows
+// the picture, so the controls appear at their real size, and only as tall as the two rows of
+// controls.
 //
 //   CHROME="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
 //   "$CHROME" --headless=new --remote-debugging-port=9333 --user-data-dir=/tmp/tt-profile about:blank &
@@ -26,7 +28,7 @@ const { result: { sessionId } } = await send("Target.attachToTarget", { targetId
 const nav = await send("Page.navigate", { url: "chrome://extensions" }, sessionId);
 if (nav.error || nav.result?.errorText) console.log("navigate:", JSON.stringify(nav.error ?? nav.result.errorText));
 const ev = async (expression) => (await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true }, sessionId)).result?.result?.value;
-await send("Emulation.setDeviceMetricsOverride", { width: 1180, height: 400, deviceScaleFactor: 2, mobile: false }, sessionId);
+await send("Emulation.setDeviceMetricsOverride", { width: 820, height: 150, deviceScaleFactor: 2, mobile: false }, sessionId);
 await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: process.argv[3] || "light" }] }, sessionId);
 await sleep(1500);
 console.log("dev mode toggled:", await ev(`(() => { const t = document.querySelector("extensions-manager")?.shadowRoot?.querySelector("extensions-toolbar")?.shadowRoot; const d = t?.querySelector("#devMode"); if (!d) return "toggle not found"; if (!d.checked) d.click(); return d.checked ? "on" : "clicked"; })()`));

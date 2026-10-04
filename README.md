@@ -8,7 +8,7 @@ from the dashboard: prioritize themes, open the tabs for one task, mark them don
 The result is a couple of Chrome windows with a handful of live tabs, a task list that doesn't
 depend on tabs staying open, and far less memory use.
 
-<a href="docs/images/dashboard-light.png">
+<a href="docs/images/dashboard-light.png?raw=true">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
     <img src="docs/images/dashboard-light.png" width="900"
@@ -16,7 +16,8 @@ depend on tabs staying open, and far less memory use.
   </picture>
 </a>
 
-*The dashboard, shown with demo data.*
+*The dashboard, shown with demo data. Click any picture in this README to see it alone at full
+size; your browser's Back button returns here.*
 
 Sorting is done by Claude, through the Claude Code CLI. By design it runs **only on a claude.ai
 subscription**. An Anthropic API key is never used: if the CLI isn't logged in with a
@@ -68,21 +69,19 @@ subscription, or reports an API key, the sorting call is refused instead of bein
    3. Click **Load unpacked**, which appears at the top left once Developer mode is on (②), and
       pick the repo's `extension/` folder. In the file dialog, ⌘⇧G lets you paste the path.
    4. If the Tab Triage icon isn't in Chrome's toolbar, click the puzzle-piece icon at the right
-      of the address bar and click the pin next to **Tab Triage**. (With **Pin new extensions to
-      Toolbar** switched on, as in the picture, the icon appears by itself.)
+      of the address bar and click the pin next to **Tab Triage**. (If **Pin new extensions to
+      Toolbar** is switched on, further down the same page, the icon appears by itself.)
 
-      <a href="docs/images/install-pin.png"><img src="docs/images/install-pin.png" width="286"
+      <a href="docs/images/install-pin.png?raw=true"><img src="docs/images/install-pin.png" width="286"
            alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right."></a>
 
-   <a href="docs/images/install-extensions-light.png">
+   <a href="docs/images/install-extensions-light.png?raw=true">
      <picture>
        <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
        <img src="docs/images/install-extensions-light.png" width="800"
             alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
      </picture>
    </a>
-
-   Click a picture to open it full size.
 
 3. Click the Tab Triage icon. The dashboard opens.
 
@@ -128,7 +127,7 @@ are never swept.
 **The header** shows the mode (First run / Dry-run / Live), tab memory against its budget, how
 many tabs are loaded, and how many windows are open.
 
-<a href="docs/images/header-light.png">
+<a href="docs/images/header-light.png?raw=true">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
     <img src="docs/images/header-light.png" width="760"
@@ -142,7 +141,7 @@ except the dashboard itself and Chrome's own pages such as `chrome://extensions`
 **Kept** (every tab you chose to keep, by theme, including themes that have left the list) and
 **Completed**.
 
-<a href="docs/images/views-light.png">
+<a href="docs/images/views-light.png?raw=true">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
     <img src="docs/images/views-light.png" width="437"
@@ -150,7 +149,10 @@ except the dashboard itself and Chrome's own pages such as `chrome://extensions`
   </picture>
 </a>
 
-<br>
+### What you can do
+
+Each row is one thing you might want to do, and how to do it. Names in bold are the buttons and
+labels as they appear on the dashboard.
 
 | To do this | Do this |
 |---|---|
