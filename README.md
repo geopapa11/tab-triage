@@ -97,14 +97,17 @@ are never swept.
 **The header** shows the mode (First run / Dry-run / Live), tab memory against its budget, how
 many tabs are loaded, and how many windows are open.
 
-**Themes** are listed in priority order, with unranked ones below.
+The dashboard has four views: **Themes** (your list, in priority order, with unranked themes
+below and Later ones at the bottom), **Open tabs** (every page open in Chrome right now),
+**Snoozed** and **Completed**.
 
 | To do this | Do this |
 |---|---|
 | Open a saved tab | Click its title. |
 | Work on a theme | **Open N** opens its top 6 tabs in a new window. |
 | Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
-| Add a page you're on | Right-click **inside the page** (or right-click the Tab Triage toolbar icon) → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
+| Add a tab that's open in Chrome | **Open tabs** view → **Add & close** or **Add, keep open** on its row → pick a theme, **Let Claude choose**, **On its own** (Unsorted) or **New theme…**. The row shows if the page is already saved. |
+| Add the page you're on, without the dashboard | Right-click **inside the page** → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
 | Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
 | Mark a tab done | Tick its box. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. Untick it to bring it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |

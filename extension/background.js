@@ -304,17 +304,26 @@ async function rebuildMenus() {
   }
 }
 
+// Save one open tab to a theme (null = let Claude choose), with its page text when allowed.
+// Used by the right-click menu and by the dashboard's "Open tabs" view.
+async function addPage(tab, { theme = null, close = false } = {}) {
+  if (!tab || !/^https?:/.test(tab.url)) throw new Error("only web pages can be added");
+  const state = await api("GET", "/api/state");
+  const { text } = textAllowed(tab.url, state.settings.never_read) ? await probe(tab, true) : { text: null };
+  await api("POST", "/api/tabs/add", { url: tab.url, title: tab.title, theme, text });
+  if (close) await chrome.tabs.remove(tab.id);
+  return { title: tab.title, theme, closed: close };
+}
+
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
   const action = parseMenuId(info.menuItemId);
   if (!action || !tab || !/^https?:/.test(tab.url)) return;
   try {
-    const [state, board] = await Promise.all([api("GET", "/api/state"), api("GET", "/api/board")]);
+    const board = await api("GET", "/api/board");
     const all = [...board.themes, ...board.later_themes, ...board.snoozed_themes];
     const theme = action.unsorted ? "Unsorted"
       : action.themeId == null ? null : all.find((t) => t.id === action.themeId)?.name;
-    const { text } = textAllowed(tab.url, state.settings.never_read) ? await probe(tab, true) : { text: null };
-    await api("POST", "/api/tabs/add", { url: tab.url, title: tab.title, theme, text });
-    if (action.close) await chrome.tabs.remove(tab.id);
+    await addPage(tab, { theme, close: action.close });
     await chrome.action.setBadgeText({ text: "✓" });
     setTimeout(() => updateBadge(), 1500);
   } catch (e) {
@@ -366,10 +375,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     closePending,
     checkMemory: guardMemory,
     tidyWindows,
+    addOpenTab: async ({ tabId, theme, close }) => addPage(await chrome.tabs.get(tabId), { theme, close }),
   };
   const fn = handlers[msg?.type];
   if (!fn) return false;
-  fn().then((r) => sendResponse({ ok: true, result: r }), (e) => {
+  fn(msg).then((r) => sendResponse({ ok: true, result: r }), (e) => {
     report(e);
     sendResponse({ ok: false, error: String(e?.message ?? e) });
   });

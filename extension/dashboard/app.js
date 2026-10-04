@@ -5,7 +5,7 @@ import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/ti
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
-import { rangeIds, pickerThemes, filterThemes } from "../lib/select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
 
 const DAY_S = 86400;
@@ -21,6 +21,7 @@ const S = {
   pending: 0,
   memory: null,
   liveTabs: 0,
+  openTabs: [],
   windows: 0,
   lastSweep: null,
   offline: false,
@@ -72,6 +73,7 @@ async function refresh({ animate = false } = {}) {
     Object.assign(S, {
       state, board, completed: completed.tabs, pending: pending.urls.length, memory,
       liveTabs: tabs.filter((t) => isLoaded(t) && !t.url.startsWith(SELF)).length,
+      openTabs: openTabRows(tabs, board, SELF),
       lastSweep: local.lastSweep ?? null, offline: false,
       windows: wins.filter((w) => !w.incognito).length,
     });
@@ -106,7 +108,7 @@ function render() {
     $("main").innerHTML = "";
     return;
   }
-  const views = { themes: renderThemes, snoozed: renderSnoozed, completed: renderCompleted };
+  const views = { themes: renderThemes, open: renderOpen, snoozed: renderSnoozed, completed: renderCompleted };
   $("main").innerHTML = (views[S.view] || renderThemes)();
   const present = new Set([...document.querySelectorAll("[data-tab-id]")].map((r) => Number(r.dataset.tabId)));
   for (const id of S.selected) if (!present.has(id)) S.selected.delete(id);
@@ -219,15 +221,17 @@ function renderBanners() {
 }
 
 function renderViews() {
+  const labels = { themes: "Themes", open: "Open tabs", snoozed: "Snoozed", completed: "Completed" };
   const counts = S.offline ? {} : {
     themes: S.board.themes.length,
+    open: S.openTabs.length,
     snoozed: S.board.snoozed_tabs.length + S.board.snoozed_themes.length,
     completed: S.completed.length,
   };
   for (const b of $("views").querySelectorAll("button")) {
     const v = b.dataset.view;
     b.setAttribute("aria-current", v === S.view ? "page" : "false");
-    b.innerHTML = `${esc(v[0].toUpperCase() + v.slice(1))}${counts[v] != null ? `<span class="count">${counts[v]}</span>` : ""}`;
+    b.innerHTML = `${esc(labels[v] ?? v)}${counts[v] != null ? `<span class="count">${counts[v]}</span>` : ""}`;
   }
 }
 
@@ -325,6 +329,32 @@ function renderThemes() {
           </button>
         </li>`).join("")}</ul>` : ""}
     ${S.board.pending_sort ? `<p class="footnote">${S.board.pending_sort} tabs waiting to be sorted.</p>` : ""}`;
+}
+
+// Every web page open in Chrome right now, so any of them can be filed into a theme from here.
+function renderOpen() {
+  if (!S.openTabs.length) {
+    return `<div class="empty-state"><b>No other tabs open</b>Pages you have open in Chrome show up here, ready to add to a theme.</div>`;
+  }
+  const row = (r) => `
+    <li class="tab open-row" data-open-id="${r.id}">
+      <span></span>
+      <img src="${favicon(r.url)}" alt="" loading="lazy">
+      <div class="title">
+        <a href="${esc(r.url)}" data-action="focus-tab" title="Switch to this tab">${esc(r.title)}</a>
+        <div class="sub">${esc(new URL(r.url).hostname.replace(/^www\./, ""))} · ${
+          r.savedIn ? `already in <span class="theme-chip">${esc(r.savedIn)}</span>` : "not saved yet"}</div>
+      </div>
+      <div class="row-tools" style="opacity:1">
+        <button class="tool" data-action="add-open" data-close="1">Add &amp; close</button>
+        <button class="tool" data-action="add-open">Add, keep open</button>
+      </div>
+    </li>`;
+  return `<div class="ledger">
+    <h3>Open in Chrome · ${S.openTabs.length}</h3>
+    <ul class="tabs">${S.openTabs.map(row).join("")}</ul>
+    <p class="footnote">Add a tab to a theme without waiting for a sweep. “Add &amp; close” also closes it in Chrome.</p>
+  </div>`;
 }
 
 function renderSnoozed() {
@@ -431,16 +461,22 @@ async function removeTabs(ids, what = null) {
 
 // A searchable list of themes: used by "Move to…" and "Merge into…". Includes Later and snoozed
 // themes so parked themes can still receive tabs.
-function themePicker(anchor, { exclude = null, allowNew = false } = {}, onPick) {
-  const themes = pickerThemes(S.board, exclude);
+function themePicker(anchor, { exclude = null, allowNew = false, withAuto = false } = {}, onPick) {
+  const themes = pickerThemes(S.board, exclude).filter((t) => !(withAuto && t.name === "Unsorted"));
   popover(anchor, `
+    ${withAuto ? `
+      <button data-choice="__auto">Let Claude choose</button>
+      <button data-choice="__unsorted">On its own <span class="hint">Unsorted</span></button>
+      <hr>` : ""}
     <input type="search" class="picker-filter" placeholder="Find a theme…" aria-label="Find a theme">
     <div class="picker-list">${themes.map((t) => `
       <button data-choice="${t.id}">${esc(t.name)}${t.note ? `<span class="hint">${t.note}</span>` : ""}</button>`).join("")}
     </div>
     ${allowNew ? `<hr><button data-choice="__new">New theme…</button>` : ""}`,
   (choice) => {
-    if (choice === "__new") {
+    if (choice === "__auto") onPick({ id: null, name: null });
+    else if (choice === "__unsorted") onPick({ id: null, name: "Unsorted" });
+    else if (choice === "__new") {
       const name = prompt("Name of the new theme:")?.trim();
       if (name) onPick({ id: null, name });
     } else {
@@ -552,8 +588,8 @@ const lines = (id) => $(id).value.split("\n").map((l) => l.trim()).filter(Boolea
 
 // --- actions --------------------------------------------------------------------------
 
-async function message(type) {
-  const res = await chrome.runtime.sendMessage({ type });
+async function message(type, payload = {}) {
+  const res = await chrome.runtime.sendMessage({ type, ...payload });
   if (!res?.ok) throw new Error(res?.error || "extension did not answer");
   return res.result;
 }
@@ -621,6 +657,22 @@ const actions = {
   "wake-tab": (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until: null })),
   "snooze-theme": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/themes/${themeId(el)}/snooze`, { until }))),
   "remove-tab": (el) => removeTabs([tabId(el)]),
+  "focus-tab": async (el, e) => {
+    e.preventDefault();
+    const id = Number(el.closest("[data-open-id]").dataset.openId);
+    const tab = await chrome.tabs.update(id, { active: true }).catch(() => null);
+    if (tab) chrome.windows.update(tab.windowId, { focused: true });
+  },
+  "add-open": (el) => {
+    const id = Number(el.closest("[data-open-id]").dataset.openId);
+    const close = el.dataset.close === "1";
+    const row = S.openTabs.find((r) => r.id === id);
+    themePicker(el, { allowNew: true, withAuto: true }, (t) => act(async () => {
+      await message("addOpenTab", { tabId: id, theme: t.name, close });
+      const where = t.name ? `to “${t.name}”` : "— Claude is choosing a theme";
+      toast(`Added “${row?.title ?? "tab"}” ${where}${close ? " and closed it" : ""}.`);
+    }));
+  },
   "add-link": (el) => {
     const th = themeById(themeId(el));
     popover(el, `

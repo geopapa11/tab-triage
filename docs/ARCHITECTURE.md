@@ -131,13 +131,15 @@ fast enough for a few hundred tabs.
   every 20 seconds and when the tab becomes visible.
 - **Writes:** tick, snooze, move, rename, merge, reorder, remove, add — all go to the server.
 - **Chrome actions** go to the worker by message: `sweepNow`, `previewSweep`, `closePending`,
-  `tidyWindows`, `themesChanged`.
+  `tidyWindows`, `themesChanged`, `addOpenTab`.
 - **Corrections.** Moving a tab to another theme, renaming, merging and dissolving are recorded
   in the `corrections` table and included in later prompts.
 
 ## Adding a page from outside
 
-The worker builds a right-click menu (`chrome.contextMenus`) from the current themes and rebuilds
+The dashboard's **Open tabs** view lists Chrome's open pages (`openTabRows` in `lib/select.js`)
+and sends `addOpenTab` to the worker, which saves the page with its text and optionally closes
+it. The same worker function (`addPage`) serves the right-click menu: the worker builds a menu (`chrome.contextMenus`) from the current themes and rebuilds
 it when they change. Choosing an item sends the page to `POST /api/tabs/add` with a theme name,
 `"Unsorted"`, or no theme (Claude chooses), and optionally closes the tab.
 

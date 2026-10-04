@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rangeIds, pickerThemes, filterThemes } from "./select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows } from "./select.js";
 
 const rows = [11, 12, 13, 14, 15];
 
@@ -42,4 +42,24 @@ test("filtering the picker matches any part of the name, ignoring case", () => {
   assert.deepEqual(filterThemes(all, "repair").map((t) => t.id), [3]);
   assert.deepEqual(filterThemes(all, "  PRS ").map((t) => t.id), [1]);
   assert.equal(filterThemes(all, "").length, 4);
+});
+
+// openTabRows: Chrome's open tabs as rows for the dashboard's "Open tabs" view.
+test("open tabs are listed with where they are already saved, web pages only", () => {
+  const DASH = "chrome-extension://x/dashboard/index.html";
+  const chromeTabs = [
+    { id: 1, url: DASH, title: "Tab Triage" },
+    { id: 2, url: "https://a.com/x", title: "A", active: true },
+    { id: 3, url: "chrome://extensions", title: "Extensions" },
+    { id: 4, url: "https://b.com", title: "B" },
+    { id: 5, url: "https://a.com/x", title: "A again" },
+  ];
+  const saved = {
+    themes: [{ name: "Team PRs", tabs: [{ url: "https://b.com", status: "open" }, { url: "https://a.com/x", status: "done" }] }],
+    later_themes: [], snoozed_themes: [], snoozed_tabs: [],
+  };
+  assert.deepEqual(openTabRows(chromeTabs, saved, DASH), [
+    { id: 2, url: "https://a.com/x", title: "A", savedIn: null },
+    { id: 4, url: "https://b.com", title: "B", savedIn: "Team PRs" },
+  ]);
 });
