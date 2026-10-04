@@ -294,12 +294,13 @@ async function rebuildMenus() {
   const themes = [...board.themes, ...board.later_themes, ...board.snoozed_themes]
     .filter((t) => t.name !== "Unsorted")
     .map((t) => ({ id: t.id, name: t.name }));
-  const key = JSON.stringify(themes);
+  const key = "v2:" + JSON.stringify(themes);
   if (key === menuKey) return;
   menuKey = key;
   await chrome.contextMenus.removeAll();
   for (const item of menuItems(themes)) {
-    chrome.contextMenus.create({ contexts: ["page", "action"], ...item });
+    // "all" = anywhere in a page (blank space, links, images, selected text) and the toolbar icon.
+    chrome.contextMenus.create({ contexts: ["all"], ...item });
   }
 }
 
