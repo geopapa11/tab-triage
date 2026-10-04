@@ -139,8 +139,8 @@ If any check fails, nothing is sent, the tabs go to Unsorted, and the dashboard 
 is one API call followed by a full refresh from the server, then a re-render. This is simple and
 fast enough for a few hundred tabs.
 
-- **Reads:** `/api/state`, `/api/board`, `/api/completed`, `/api/pending-close`, `/api/memory`,
-  every 20 seconds and when the tab becomes visible.
+- **Reads:** `/api/state`, `/api/board`, `/api/completed`, `/api/kept`, `/api/pending-close`,
+  `/api/memory`, every 20 seconds and when the tab becomes visible.
 - **Writes:** tick, snooze, move, rename, merge, reorder, remove, add — all go to the server.
 - **Chrome actions** go to the worker by message: `sweepNow`, `previewSweep`, `closePending`,
   `tidyWindows`, `themesChanged`, `addOpenTab`.
@@ -194,13 +194,14 @@ All JSON, on `127.0.0.1:8765` only.
 | `GET /api/state` | Mode, sorting status, last sort error, merge suggestions, settings. |
 | `GET /api/board` | Themes with their tabs; Later and snoozed themes; snoozed tabs. |
 | `GET /api/completed` | Completed tabs, newest first. |
+| `GET /api/kept` | Kept tabs by theme, including themes no longer on the board. |
 | `GET /api/pending-close` | Tabs saved but still open in Chrome (first run and dry-run). |
 | `GET /api/memory` | Chrome's total and tab memory, the budget, and whether it is over. |
 | `GET /api/export.md` | The list as Markdown. |
 | `POST /api/sweep` | Store swept tabs and start sorting. |
 | `POST /api/closed` | The worker reports which saved tabs it closed. |
 | `POST /api/first-run/complete` | Start the dry-run week. |
-| `POST /api/tabs/{id}/{check,uncheck,snooze,move,opened,remove}` | Act on one tab. |
+| `POST /api/tabs/{id}/{check,uncheck,keep,unkeep,snooze,move,opened,remove}` | Act on one tab. |
 | `POST /api/tabs/bulk` | Check, snooze, move or remove several tabs. |
 | `POST /api/tabs/restore` | Undo a remove. |
 | `POST /api/tabs/add` | Add a page to a theme, or let Claude choose. |

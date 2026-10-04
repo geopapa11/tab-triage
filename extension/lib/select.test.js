@@ -64,6 +64,13 @@ test("open tabs are listed with where they are already saved, web pages only", (
   ]);
 });
 
+test("a kept tab counts as saved, also when its theme has left the board", () => {
+  const chromeTabs = [{ id: 1, url: "https://a.com", title: "A" }, { id: 2, url: "https://b.com", title: "B" }];
+  const saved = { themes: [{ name: "Team PRs", tabs: [{ url: "https://a.com", status: "kept" }] }] };
+  const kept = [{ url: "https://a.com", theme: "Team PRs" }, { url: "https://b.com", theme: "Old project" }];
+  assert.deepEqual(openTabRows(chromeTabs, saved, "chrome-extension://x/", kept).map((r) => r.savedIn), ["Team PRs", "Old project"]);
+});
+
 // Theme select-all checkbox, Gmail style.
 test("a theme's checkbox shows whether none, some or all of its tabs are selected", () => {
   assert.equal(selectionState(new Set(), [1, 2, 3]), "none");

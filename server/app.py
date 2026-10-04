@@ -67,14 +67,23 @@ class Sorter:
                     include_unsorted, self._again = self._again, None
 
 
-def export_markdown(board, now):
+def _md_title(tab):
+    return tab["title"].replace("[", "(").replace("]", ")")
+
+
+def export_markdown(board, now, kept=()):
     out = [f"# Tab Triage — {datetime.fromtimestamp(now):%Y-%m-%d %H:%M}", ""]
     for theme in board["themes"]:
         out.append(f"## {theme['name']}")
         for t in theme["tabs"]:
+            if t["status"] == "kept":
+                continue  # listed once, in their own section below
             box = "x" if t["status"] == "done" else " "
-            title = t["title"].replace("[", "(").replace("]", ")")
-            out.append(f"- [{box}] [{title}]({t['url']})")
+            out.append(f"- [{box}] [{_md_title(t)}]({t['url']})")
+        out.append("")
+    if kept:
+        out.append("## Kept")
+        out += [f"- [{_md_title(t)}]({t['url']}) ({t['theme']})" for t in kept]
         out.append("")
     return "\n".join(out)
 
@@ -146,6 +155,10 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
             store.check(tid)
         elif action == "uncheck":
             store.uncheck(tid)
+        elif action == "keep":
+            store.keep(tid)
+        elif action == "unkeep":
+            store.unkeep(tid)
         elif action == "snooze":
             store.snooze_tab(tid, body.get("until"))
         elif action == "move":
@@ -263,13 +276,14 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         ("GET", r"/api/state", get_state),
         ("GET", r"/api/board", lambda b, m: store.board()),
         ("GET", r"/api/completed", lambda b, m: {"tabs": store.completed()}),
+        ("GET", r"/api/kept", lambda b, m: {"tabs": store.kept()}),
         ("GET", r"/api/pending-close", lambda b, m: {
             "urls": store.pending_close_urls(), "tabs": store.pending_close()}),
         ("GET", r"/api/memory", get_memory),
         ("POST", r"/api/sweep", post_sweep),
         ("POST", r"/api/closed", post_closed),
         ("POST", r"/api/first-run/complete", post_first_run_complete),
-        ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|snooze|move|opened|remove)", tab_action),
+        ("POST", r"/api/tabs/(?P<id>\d+)/(?P<action>check|uncheck|keep|unkeep|snooze|move|opened|remove)", tab_action),
         ("POST", r"/api/tabs/bulk", post_bulk),
         ("POST", r"/api/tabs/restore", post_restore),
         ("POST", r"/api/tabs/add", post_add),
@@ -310,7 +324,7 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
                 return self._send(403, {"error": "forbidden"})
             path = self.path.split("?", 1)[0]
             if self.command == "GET" and path == "/api/export.md":
-                text = export_markdown(store.board(), store.now())
+                text = export_markdown(store.board(), store.now(), store.kept())
                 return self._send(200, text.encode(), "text/markdown; charset=utf-8")
             for meth, pattern, fn in compiled:
                 m = pattern.match(path)

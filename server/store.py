@@ -235,6 +235,24 @@ class Store:
             )
             self._touch(theme_id)
 
+    def keep(self, tab_id):
+        """Finished as a task but worth reading again: stays with its theme, never purged."""
+        with self._lock, self._db:
+            self._db.execute(
+                "UPDATE tabs SET status = 'kept', completed_at = NULL, snoozed_until = NULL, back = 0 "
+                "WHERE id = ? AND status IN ('open', 'done')",
+                (tab_id,),
+            )
+            self._touch(self._theme_id(tab_id))
+
+    def unkeep(self, tab_id):
+        """Stop keeping: an ordinary completed tab from now on, so its retention starts today."""
+        with self._lock, self._db:
+            self._db.execute(
+                "UPDATE tabs SET status = 'done', completed_at = ? WHERE id = ? AND status = 'kept'",
+                (self.now(), tab_id),
+            )
+
     def move_tab(self, tab_id, theme=None, index=0):
         """Move a tab to `index` among the visible open tabs of `theme` (None = its own theme)."""
         with self._lock, self._db:
@@ -343,8 +361,8 @@ class Store:
                     self._db.execute("DELETE FROM themes WHERE id = ?", (th,))
 
     def delete_theme(self, theme_id):
-        """Delete a theme's open tabs. Ticked tabs keep their Completed history (and the theme's
-        name with it); the now-hidden theme row goes when purge removes the last of them."""
+        """Delete a theme's open tabs. Completed and kept tabs stay (and the theme's name with
+        them); the now-hidden theme row goes when the last of them is gone."""
         with self._lock, self._db:
             self._db.execute(
                 "DELETE FROM tabs WHERE theme_id = ? AND status IN ('open', 'removed')", (theme_id,)
@@ -368,12 +386,14 @@ class Store:
             self._touch(theme_id)
 
     def dissolve_theme(self, theme_id):
-        """Drop the grouping, keep the tabs: open ones go back to be sorted again; ticked ones
-        keep their Completed history under Unsorted."""
+        """Drop the grouping, keep the tabs: open ones go back to be sorted again; completed and
+        kept ones move under Unsorted."""
         with self._lock:
             name = self._theme_name(theme_id)
-            has_done = self._one("SELECT 1 FROM tabs WHERE theme_id = ? AND status = 'done'", theme_id)
-            unsorted = self.create_theme("Unsorted") if has_done else None
+            stays = self._one(
+                "SELECT 1 FROM tabs WHERE theme_id = ? AND status IN ('done', 'kept')", theme_id
+            )
+            unsorted = self.create_theme("Unsorted") if stays else None
             with self._db:
                 self._db.execute("DELETE FROM tabs WHERE theme_id = ? AND status = 'removed'", (theme_id,))
                 self._db.execute(
@@ -464,7 +484,12 @@ class Store:
                     "ORDER BY completed_at DESC, id DESC",
                     th["id"],
                 )
-                tabs = [self._tab_dict(r) for r in [*open_rows, *done_rows]]
+                kept_rows = self._q(
+                    "SELECT * FROM tabs WHERE theme_id = ? AND status = 'kept' "
+                    "ORDER BY title COLLATE NOCASE, id",
+                    th["id"],
+                )
+                tabs = [self._tab_dict(r) for r in [*open_rows, *kept_rows, *done_rows]]
                 target = (snoozed_themes if th["snoozed_until"] is not None
                           else later_themes if th["later"] else themes)
                 target.append(self._theme_dict(th, tabs))
@@ -492,6 +517,16 @@ class Store:
                 "SELECT t.*, th.name AS theme_name FROM tabs t "
                 "LEFT JOIN themes th ON th.id = t.theme_id WHERE t.status = 'done' "
                 "ORDER BY t.completed_at DESC, t.id DESC"
+            )
+        return [{**self._tab_dict(r), "theme": r["theme_name"]} for r in rows]
+
+    def kept(self):
+        """Every kept tab, including those whose theme has left the board."""
+        with self._lock:
+            rows = self._q(
+                "SELECT t.*, th.name AS theme_name FROM tabs t "
+                "LEFT JOIN themes th ON th.id = t.theme_id WHERE t.status = 'kept' "
+                "ORDER BY th.name COLLATE NOCASE, t.title COLLATE NOCASE, t.id"
             )
         return [{**self._tab_dict(r), "theme": r["theme_name"]} for r in rows]
 

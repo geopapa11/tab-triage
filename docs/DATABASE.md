@@ -25,7 +25,7 @@ erDiagram
     text url "unique"
     text title
     int theme_id FK "empty = waiting to be sorted"
-    text status "open, done or removed"
+    text status "open, kept, done or removed"
     int position "order inside the theme"
     real completed_at
     real removed_at
@@ -70,7 +70,7 @@ erDiagram
 | `title` | text | The page title. |
 | `theme_id` | integer or empty | The theme it is in. Empty while it waits to be sorted. |
 | `position` | integer | Order inside its theme, lowest first. |
-| `status` | text | `open` (on your list), `done` (completed) or `removed` (waiting for Undo). |
+| `status` | text | `open` (on your list), `kept` (finished, kept to read again), `done` (completed) or `removed` (waiting for Undo). |
 | `captured_at` | time | When it was first saved. |
 | `last_seen_at` | time | The last time a sweep saw it open in Chrome. |
 | `last_accessed_at` | time or empty | When you last used it in Chrome, as reported by the extension. |
@@ -90,6 +90,10 @@ stateDiagram-v2
   [*] --> open: swept or added
   open --> done: Done
   done --> open: Restore
+  open --> kept: Keep
+  done --> kept: Keep
+  kept --> done: Stop keeping
+  kept --> removed: Remove
   open --> removed: Remove
   removed --> open: Undo
   done --> [*]: deleted after 60 days
@@ -123,8 +127,9 @@ isn't repeated.
 | What | When |
 |---|---|
 | A completed tab (`status = done`) | 60 days after `completed_at` (the *Keep completed tabs for* setting). The row is deleted; nothing is archived. |
-| A removed tab (`status = removed`) | 1 day after `removed_at`. Until then, Undo sets it back to `open`. |
-| A theme | When you merge, dissolve or remove it and no completed tab still belongs to it, or when it has had no tabs at all for a day. |
+| A removed tab (`status = removed`) | 1 day after `removed_at`. Until then, Undo brings it back. |
+| A kept tab (`status = kept`) | Never, by itself. Only when you remove it, or stop keeping it and its retention runs out. |
+| A theme | When you merge, dissolve or remove it and no completed or kept tab still belongs to it, or when it has had no tabs at all for a day. |
 | A stale theme | Never, by itself. "Stale" is only a label worked out from `touched_at` each time the list is shown. |
 
 The clean-up (`Store.purge`) runs on every sweep and every 6 hours.

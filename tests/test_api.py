@@ -375,3 +375,28 @@ def test_defaults(env):
         "memory_check_minutes": 5, "open_tabs_max": 6, "min_tabs_new_theme": 2, "text_chars": 1500,
         "batch_size": 40, "sweep_time": "19:00", "snooze_time": "08:00", "tab_memory_cap_mb": 2048,
     }
+
+
+# --- keep ------------------------------------------------------------------------------
+
+def test_keep_and_stop_keeping_over_http(env):
+    sweep(env, [tab("https://a", "Alpha"), tab("https://b", "Beta")])
+    ids = {t["title"]: t["id"] for t in call(env, "GET", "/api/board")[1]["themes"][0]["tabs"]}
+    assert call(env, "POST", f"/api/tabs/{ids['Alpha']}/keep", {})[0] == 200
+    kept = call(env, "GET", "/api/kept")[1]["tabs"]
+    assert [(t["title"], t["theme"], t["status"]) for t in kept] == [("Alpha", "Sorted", "kept")]
+    assert call(env, "POST", f"/api/tabs/{ids['Alpha']}/unkeep", {})[0] == 200
+    assert call(env, "GET", "/api/kept")[1]["tabs"] == []
+    assert [t["title"] for t in call(env, "GET", "/api/completed")[1]["tabs"]] == ["Alpha"]
+
+
+def test_markdown_export_lists_kept_tabs_in_their_own_section(env):
+    sweep(env, [tab("https://a", "Alpha"), tab("https://b", "Beta")])
+    ids = {t["title"]: t["id"] for t in call(env, "GET", "/api/board")[1]["themes"][0]["tabs"]}
+    call(env, "POST", f"/api/tabs/{ids['Alpha']}/keep", {})
+    req = urllib.request.Request(f"http://127.0.0.1:{env['port']}/api/export.md")
+    with urllib.request.urlopen(req) as r:
+        text = r.read().decode()
+    themes, kept = text.split("## Kept")
+    assert "- [ ] [Beta](https://b)" in themes and "Alpha" not in themes
+    assert "- [Alpha](https://a) (Sorted)" in kept

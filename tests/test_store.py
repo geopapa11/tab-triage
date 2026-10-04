@@ -471,3 +471,106 @@ def test_theme_staleness_follows_the_setting(store, clock):
     store.set_setting("theme_stale_days", 3)
     clock.advance(3.1)
     assert board_theme(store.board(), "SQL")["stale"] is True
+
+
+# --- keep: finished as a task, still worth reading again ------------------------------
+
+def kept_titles(store):
+    return [(t["title"], t["theme"]) for t in store.kept()]
+
+
+def test_a_kept_tab_leaves_the_open_list_and_is_listed_as_kept(store):
+    a, b = add_to_theme(store, "SQL", "https://a", "https://b")
+    store.keep(a)
+    theme = board_theme(store.board(), "SQL")
+    assert open_titles(theme) == ["https://b"]
+    assert [t["title"] for t in theme["tabs"] if t["status"] == "kept"] == ["https://a"]
+    assert kept_titles(store) == [("https://a", "SQL")]
+    assert store.completed() == []
+
+
+def test_a_completed_tab_can_be_kept(store):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.check(a)
+    store.keep(a)
+    assert store.completed() == []
+    assert kept_titles(store) == [("https://a", "SQL")]
+
+
+def test_kept_tabs_are_never_purged(store, clock):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.keep(a)
+    clock.advance(400)
+    store.purge()
+    assert kept_titles(store) == [("https://a", "SQL")]
+
+
+def test_a_kept_tab_swept_again_stays_kept(store):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.keep(a)
+    assert store.capture([cap("https://a")]) == [a]
+    assert kept_titles(store) == [("https://a", "SQL")]
+    assert store.pending_sort() == []
+
+
+def test_keeping_a_snoozed_tab_ends_its_snooze(store, clock):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.snooze_tab(a, until=clock() + DAY)
+    store.keep(a)
+    assert store.board()["snoozed_tabs"] == []
+    assert store.kept()[0]["snoozed_until"] is None
+
+
+def test_stop_keeping_sends_the_tab_to_completed_and_starts_its_retention(store, clock):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.keep(a)
+    clock.advance(100)
+    store.unkeep(a)
+    assert store.kept() == []
+    assert [t["completed_at"] for t in store.completed()] == [clock()]
+    clock.advance(59)
+    store.purge()
+    assert len(store.completed()) == 1
+    clock.advance(2)
+    store.purge()
+    assert store.completed() == []
+
+
+def test_unkeep_only_affects_kept_tabs(store):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.unkeep(a)
+    assert open_titles(board_theme(store.board(), "SQL")) == ["https://a"]
+
+
+def test_a_theme_with_only_kept_tabs_leaves_the_board_but_not_the_kept_list(store):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.keep(a)
+    assert store.board()["themes"] == []
+    assert kept_titles(store) == [("https://a", "SQL")]
+
+
+def test_mark_theme_done_and_delete_theme_leave_kept_tabs_alone(store):
+    a, b = add_to_theme(store, "SQL", "https://a", "https://b")
+    store.keep(a)
+    theme_id = board_theme(store.board(), "SQL")["id"]
+    store.mark_theme_done(theme_id)
+    assert kept_titles(store) == [("https://a", "SQL")]
+    store.delete_theme(theme_id)
+    assert kept_titles(store) == [("https://a", "SQL")]
+
+
+def test_dissolving_a_theme_moves_its_kept_tabs_to_unsorted(store):
+    a, b = add_to_theme(store, "SQL", "https://a", "https://b")
+    store.keep(a)
+    store.dissolve_theme(board_theme(store.board(), "SQL")["id"])
+    assert kept_titles(store) == [("https://a", "Unsorted")]
+    assert [t["url"] for t in store.pending_sort()] == ["https://b"]
+
+
+def test_kept_tabs_are_listed_by_theme_then_title(store):
+    add_to_theme(store, "Zebra", "https://z")
+    add_to_theme(store, "Alpha", "https://b", "https://a")
+    for t in store.board()["themes"]:
+        for tab in t["tabs"]:
+            store.keep(tab["id"])
+    assert kept_titles(store) == [("https://a", "Alpha"), ("https://b", "Alpha"), ("https://z", "Zebra")]

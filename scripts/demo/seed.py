@@ -54,7 +54,11 @@ add("Unsorted", [
     (22, "https://news.ycombinator.com/item?id=1", "Show HN: A tiny SQLite job queue | Hacker News"),
 ])
 
-# a completed tab in the first theme, and one tab back from snooze
+# a kept tab and a completed tab in the first theme, and one tab back from snooze
+clock["t"] = now - 60 * H
+(kept,) = store.capture([{"url": "https://docs.stripe.com/payments/payment-element/design", "title": "Payment Element design guidelines | Stripe Documentation"}])
+store.assign(kept, "Checkout redesign")
+store.keep(kept)
 clock["t"] = now - 30 * H
 (done,) = store.capture([{"url": "https://www.nngroup.com/articles/ecommerce-checkout/", "title": "E-Commerce Checkout Usability — Nielsen Norman Group"}])
 store.assign(done, "Checkout redesign")

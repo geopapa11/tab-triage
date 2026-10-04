@@ -19,6 +19,7 @@ const S = {
   state: null,
   board: null,
   completed: [],
+  kept: [],
   pending: 0,
   memory: null,
   liveTabs: 0,
@@ -61,10 +62,11 @@ let pollTimer;
 async function refresh({ animate = false } = {}) {
   const before = animate ? snapshot() : null;
   try {
-    const [state, board, completed, pending, memory, tabs, local, wins] = await Promise.all([
+    const [state, board, completed, kept, pending, memory, tabs, local, wins] = await Promise.all([
       api("GET", "/api/state"),
       api("GET", "/api/board"),
       api("GET", "/api/completed"),
+      api("GET", "/api/kept"),
       api("GET", "/api/pending-close"),
       api("GET", "/api/memory"),
       chrome.tabs.query({}),
@@ -72,9 +74,9 @@ async function refresh({ animate = false } = {}) {
       chrome.windows.getAll({ windowTypes: ["normal"] }),
     ]);
     Object.assign(S, {
-      state, board, completed: completed.tabs, pending: pending.urls.length, memory,
+      state, board, completed: completed.tabs, kept: kept.tabs, pending: pending.urls.length, memory,
       liveTabs: tabs.filter((t) => isLoaded(t) && !t.url.startsWith(SELF)).length,
-      openTabs: openTabRows(tabs, board, SELF),
+      openTabs: openTabRows(tabs, board, SELF, kept.tabs),
       lastSweep: local.lastSweep ?? null, offline: false,
       windows: wins.filter((w) => !w.incognito).length,
     });
@@ -109,7 +111,7 @@ function render() {
     $("main").innerHTML = "";
     return;
   }
-  const views = { themes: renderThemes, open: renderOpen, snoozed: renderSnoozed, completed: renderCompleted };
+  const views = { themes: renderThemes, open: renderOpen, snoozed: renderSnoozed, kept: renderKept, completed: renderCompleted };
   $("main").innerHTML = (views[S.view] || renderThemes)();
   const present = new Set([...document.querySelectorAll("[data-tab-id]")].map((r) => Number(r.dataset.tabId)));
   for (const id of S.selected) if (!present.has(id)) S.selected.delete(id);
@@ -222,41 +224,48 @@ function renderBanners() {
 }
 
 function renderViews() {
-  const labels = { themes: "Themes", open: "Open tabs", snoozed: "Snoozed", completed: "Completed" };
+  const labels = { themes: "Themes", open: "Open tabs", snoozed: "Snoozed", kept: "Kept", completed: "Completed" };
   const counts = S.offline ? {} : {
     themes: S.board.themes.length,
     open: S.openTabs.length,
     snoozed: S.board.snoozed_tabs.length + S.board.snoozed_themes.length,
+    kept: S.kept.length,
     completed: S.completed.length,
   };
   for (const b of $("views").querySelectorAll("button")) {
     const v = b.dataset.view;
     b.setAttribute("aria-current", v === S.view ? "page" : "false");
     b.title = { themes: "Your saved tabs, by theme.", open: "Tabs open in Chrome right now.",
-      snoozed: "Tabs and themes hidden until a date.", completed: "Tabs you marked as done." }[v] ?? "";
+      snoozed: "Tabs and themes hidden until a date.", kept: "Finished tabs you chose to keep. Never deleted.",
+      completed: "Tabs you marked as done." }[v] ?? "";
     b.innerHTML = `${esc(labels[v] ?? v)}${counts[v] != null ? `<span class="count">${counts[v]}</span>` : ""}`;
   }
 }
 
 function tabRow(t, { theme = null, done = false } = {}) {
+  const kept = t.status === "kept";
   const sub = [esc(t.domain), done ? `done ${hhmm(t.completed_at)}` : `saved ${ago(t.captured_at, Date.now())}`];
   if (theme) sub.unshift(`<span class="theme-chip">${esc(theme)}</span>`);
   if (t.pending_close) sub.push(`<span class="open-dot">● still open in Chrome</span>`);
   if (t.snoozed_until) sub.push(`wakes ${dayLabel(t.snoozed_until, Date.now())} ${hhmm(t.snoozed_until)}`);
   const remove = `<button class="tool" data-action="remove-tab" title="Remove from the list and close the tab in Chrome. Not kept in Completed.">Remove</button>`;
+  const keep = `<button class="tool" data-action="keep-tab" title="Finished, but worth reading again: stays with its theme and is never deleted.">Keep</button>`;
   // Hover tools, then the one action that is always visible.
-  const hover = done ? ""
+  const hover = done ? keep
+    : kept ? remove
     : t.snoozed_until ? `<button class="tool" data-action="wake-tab" title="End the snooze now.">Wake now</button>${remove}`
-    : `<button class="tool" data-action="snooze-tab" title="Hide until a date you pick.">Snooze</button>${remove}`;
+    : `${keep}<button class="tool" data-action="snooze-tab" title="Hide until a date you pick.">Snooze</button>${remove}`;
   const primary = done
     ? `<button class="tool" data-action="uncheck" title="Move back to its theme as an open tab.">Restore</button>`
+    : kept ? `<button class="tool" data-action="unkeep-tab" title="Move to Completed. Deleted ${S.state.settings.done_retention_days} days from now.">Stop keeping</button>`
     : `<button class="tool done-btn" data-action="check" title="Mark as done. Kept in Completed for ${S.state.settings.done_retention_days} days.">✓ Done</button>`;
   const box = done
     ? `<span class="tick" role="img" aria-label="Completed"></span>`
+    : kept ? `<span class="keep-mark" role="img" aria-label="Kept"></span>`
     : `<button class="check" data-action="pick" aria-label="Select this tab" title="Select. Shift-click selects a range."></button>`;
   return `
     <li class="tab ${t.status} ${t.back ? "back" : ""} ${S.selected.has(t.id) ? "selected" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
-        draggable="${!done && !t.snoozed_until && !theme}">
+        draggable="${!done && !kept && !t.snoozed_until && !theme}">
       ${box}
       <img src="${favicon(t.url)}" alt="" loading="lazy">
       <div class="title">
@@ -270,6 +279,7 @@ function tabRow(t, { theme = null, done = false } = {}) {
 function themeCard(th, i) {
   const open = th.tabs.filter((t) => t.status === "open");
   const done = th.tabs.filter((t) => t.status === "done");
+  const kept = th.tabs.filter((t) => t.status === "kept");
   const expanded = S.expandedDone.has(th.id);
   const merges = (S.state.merge_suggestions || []).filter((m) => m.from === th.name);
   const badges = [
@@ -287,7 +297,7 @@ function themeCard(th, i) {
           <button class="check all" data-action="pick-theme" aria-label="Select all tabs in this theme" title="Select all tabs in this theme."></button>
           <h2 class="theme-name" data-action="rename" title="Click to rename.">${esc(th.name)}</h2>
           ${badges}
-          <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
+          <span class="theme-meta">${open.length} open${kept.length ? ` · ${kept.length} kept` : ""}${done.length ? ` · ${done.length} done` : ""}</span>
           <div class="theme-tools">
             ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Sort these tabs into themes again.">Re-sort</button>` : ""}
             <button class="tool" data-action="open-theme" title="Open the top ${Math.min(S.state.settings.open_tabs_max, open.length)} tabs in a new window.">Open ${Math.min(S.state.settings.open_tabs_max, open.length)}</button>
@@ -306,6 +316,9 @@ function themeCard(th, i) {
           </div>`).join("")}
         <ul class="tabs" data-theme-name="${esc(th.name)}">${open.map((t) => tabRow(t)).join("")}</ul>
         <button class="add-row" data-action="add-link" title="Add a tab to this theme by pasting its link."><span></span><b>+</b><span>Add tab</span></button>
+        ${kept.length ? `
+          <div class="kept-label" title="Finished, but kept to read again. Never deleted.">Kept · ${kept.length}</div>
+          <ul class="tabs kept-list">${kept.map((t) => tabRow(t)).join("")}</ul>` : ""}
         ${done.length ? `
           <button class="done-toggle" data-action="toggle-done" title="Show or hide this theme's completed tabs.">${expanded ? "▾" : "▸"} ${done.length} completed</button>
           ${expanded ? `<ul class="tabs done-list">${done.map((t) => tabRow(t, { done: true })).join("")}</ul>` : ""}` : ""}
@@ -386,6 +399,25 @@ function renderSnoozed() {
   </div>`;
 }
 
+// Every kept tab by theme, including themes that have left the list.
+function renderKept() {
+  if (!S.kept.length) {
+    return `<div class="empty-state"><b>Nothing kept yet</b>Click Keep on a tab you've finished with but want to read again. It stays with its theme and is never deleted.</div>`;
+  }
+  const groups = new Map();
+  for (const t of S.kept) {
+    const name = t.theme ?? "No theme";
+    if (!groups.has(name)) groups.set(name, []);
+    groups.get(name).push(t);
+  }
+  return `<div class="ledger">
+    ${[...groups].map(([name, tabs]) => `
+      <h3>${esc(name)} · ${tabs.length}</h3>
+      <ul class="tabs">${tabs.map((t) => tabRow(t)).join("")}</ul>`).join("")}
+    <p class="footnote">Kept tabs are never deleted. Stop keeping moves one to Completed.</p>
+  </div>`;
+}
+
 function renderCompleted() {
   if (!S.completed.length) {
     return `<div class="empty-state"><b>Nothing completed yet</b>Click ✓ Done on a tab when you've finished with it. It stays here for ${S.state.settings.done_retention_days} days.</div>`;
@@ -453,8 +485,9 @@ function toast(text, action = null) {
 async function removeTabs(ids, what = null) {
   const byId = new Map(
     [...S.board.themes, ...S.board.later_themes, ...S.board.snoozed_themes]
-      .flatMap((th) => th.tabs).concat(S.board.snoozed_tabs).map((t) => [t.id, t]),
+      .flatMap((th) => th.tabs).concat(S.board.snoozed_tabs, S.kept).map((t) => [t.id, t]),
   );
+  const wereKept = ids.filter((id) => byId.get(id)?.status === "kept");
   const urls = new Set(ids.map((id) => byId.get(id)?.url).filter(Boolean));
   await api("POST", "/api/tabs/bulk", { ids, action: "remove" });
   const open = (await chrome.tabs.query({})).filter((t) => urls.has(t.url) && !t.url.startsWith(SELF));
@@ -464,6 +497,7 @@ async function removeTabs(ids, what = null) {
     label: "Undo",
     run: () => act(async () => {
       await api("POST", "/api/tabs/restore", { ids });
+      for (const id of wereKept) await api("POST", `/api/tabs/${id}/keep`, {});
       for (const t of open) await chrome.tabs.create({ url: t.url, active: false, windowId: t.windowId }).catch(() => chrome.tabs.create({ url: t.url, active: false }));
     }),
   });
@@ -719,6 +753,14 @@ const actions = {
   resort: () => act(() => api("POST", "/api/resort", {})),
   check: (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/check`, {})),
   uncheck: (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/uncheck`, {})),
+  "keep-tab": (el) => act(async () => {
+    await api("POST", `/api/tabs/${tabId(el)}/keep`, {});
+    toast(`Kept “${rowTitle(el)}”. It stays with its theme and is never deleted.`);
+  }),
+  "unkeep-tab": (el) => act(async () => {
+    await api("POST", `/api/tabs/${tabId(el)}/unkeep`, {});
+    toast(`“${rowTitle(el)}” moved to Completed.`);
+  }),
   "open-tab": async (el, e) => {
     e.preventDefault();
     await chrome.tabs.create({ url: el.getAttribute("href"), active: true });
@@ -940,6 +982,7 @@ const actions = {
 };
 
 const tabId = (el) => Number(el.closest("[data-tab-id]").dataset.tabId);
+const rowTitle = (el) => el.closest("[data-tab-id]").querySelector(".title a").textContent;
 const themeId = (el) => Number(el.closest("[data-theme-id]").dataset.themeId);
 
 document.addEventListener("click", (e) => {
@@ -965,8 +1008,8 @@ document.addEventListener("click", (e) => {
 
 // One click, one meaning: the checkbox selects, the title opens the tab, and the rest of the row
 // is only a drag handle. Shift-clicking a checkbox selects every visible row between the last
-// clicked one and this one. Completed rows aren't selectable.
-const SELECTABLE = ".tab[data-tab-id]:not(.done)";
+// clicked one and this one. Completed and kept rows aren't selectable.
+const SELECTABLE = ".tab[data-tab-id]:not(.done):not(.kept)";
 
 function toggleSelect(id, range = false) {
   if (range) {
