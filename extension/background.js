@@ -9,21 +9,35 @@ import { markSeen } from "./lib/seen.js";
 import { planTidy } from "./lib/tidy.js";
 import { menuItems, parseMenuId } from "./lib/addmenu.js";
 
-const SWEEP_HOUR = 19;
-const STALE_MS = 96 * 3600_000;
+const HOUR_MS = 3600_000;
 const LIVE_TAB_BUDGET = 12;
+// Used only when the server can't be reached; the real values come from Settings.
+const FALLBACK = { sweep_time: "19:00", memory_check_minutes: 5 };
 const UNLOAD_PER_CYCLE = 2;
 const DASHBOARD = chrome.runtime.getURL("dashboard/index.html");
 
 // --- scheduling ------------------------------------------------------------------
 
-// Runs on every service-worker wake, so only create alarms that are missing — recreating them
-// would keep pushing the next firing back.
+async function scheduleSettings() {
+  const s = await api("GET", "/api/state").then((st) => st.settings, () => FALLBACK);
+  return { sweep_time: s.sweep_time, memory_check_minutes: s.memory_check_minutes };
+}
+
+// Runs on every service-worker wake, so alarms are only (re)created when missing or when the
+// sweep time / check interval in Settings changed — recreating them needlessly would keep
+// pushing the next firing back.
 async function scheduleAlarms() {
-  if (!(await chrome.alarms.get("sweep"))) {
-    chrome.alarms.create("sweep", { when: nextSweepAt(Date.now(), SWEEP_HOUR) });
+  const wanted = await scheduleSettings();
+  const { schedule } = await chrome.storage.local.get("schedule");
+  const changed = JSON.stringify(schedule) !== JSON.stringify(wanted);
+  if (changed || !(await chrome.alarms.get("sweep"))) {
+    chrome.alarms.create("sweep", { when: nextSweepAt(Date.now(), wanted.sweep_time) });
   }
-  if (!(await chrome.alarms.get("memory"))) chrome.alarms.create("memory", { periodInMinutes: 5 });
+  if (changed || !(await chrome.alarms.get("memory"))) {
+    chrome.alarms.create("memory", { periodInMinutes: wanted.memory_check_minutes });
+  }
+  if (changed) await chrome.storage.local.set({ schedule: wanted });
+  return wanted;
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -38,7 +52,9 @@ chrome.runtime.onStartup.addListener(async () => {
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "sweep") {
-    chrome.alarms.create("sweep", { when: nextSweepAt(Date.now() + 60_000, SWEEP_HOUR) });
+    scheduleSettings().then((s) => {
+      chrome.alarms.create("sweep", { when: nextSweepAt(Date.now() + 60_000, s.sweep_time) });
+    });
     sweep().catch(report);
   } else if (alarm.name === "memory" || alarm.name === "memory-followup") {
     guardMemory().catch(report);
@@ -110,7 +126,7 @@ async function updateBadge() {
 
 // --- page probe: in-progress form + first 1500 chars of text ---------------------
 
-function probePage(wantText) {
+function probePage(textChars) {
   const fields = [...document.querySelectorAll("input, textarea, select")];
   const busy = fields.some((el) => {
     if (el.type === "file") return el.files && el.files.length > 0;
@@ -118,7 +134,7 @@ function probePage(wantText) {
     if (el.type === "hidden" || el.tagName === "SELECT") return false;
     return typeof el.defaultValue === "string" && el.value !== el.defaultValue;
   });
-  const text = wantText ? (document.body?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 1500) : null;
+  const text = textChars > 0 ? (document.body?.innerText || "").replace(/\s+/g, " ").trim().slice(0, textChars) : null;
   return { busy, text };
 }
 
@@ -126,12 +142,13 @@ function probePage(wantText) {
 // as busy: better to leave a tab open than lose a half-written form.
 // Not detected: contenteditable editors (Notion, Linear, Slack) — they're always "editable",
 // so flagging them would keep every such tab open forever; those apps autosave drafts.
-async function probe(tab, wantText) {
+// textChars: how much page text to return (0 = none, just the form check).
+async function probe(tab, textChars = 0) {
   const idle = { busy: false, text: null };
   if (!tab || tab.discarded || tab.status === "unloaded" || !/^https?:/.test(tab.url)) return idle;
   const unsure = { busy: true, text: null };
   const run = chrome.scripting
-    .executeScript({ target: { tabId: tab.id, allFrames: true }, func: probePage, args: [wantText] })
+    .executeScript({ target: { tabId: tab.id, allFrames: true }, func: probePage, args: [textChars] })
     .then((frames) => ({
       busy: frames.some((f) => f.result?.busy),
       text: frames[0]?.result?.text ?? null,
@@ -155,7 +172,7 @@ async function mapLimit(items, limit, fn) {
 }
 
 async function busyAmong(tabs) {
-  const results = await mapLimit(tabs, 6, (t) => probe(t, false));
+  const results = await mapLimit(tabs, 6, (t) => probe(t, 0));
   return new Set(tabs.filter((_, k) => results[k].busy).map((t) => t.id));
 }
 
@@ -171,7 +188,8 @@ async function sweepInputs(manual) {
   ]);
   const visible = tabs.filter((t) => t.url !== DASHBOARD);
   const options = {
-    now: Date.now(), staleMs: STALE_MS, mode: state.mode, keepOpen: state.settings.keep_open,
+    now: Date.now(), staleMs: state.settings.stale_hours * HOUR_MS, mode: state.mode,
+    keepOpen: state.settings.keep_open,
     seen: stored.seen ?? {}, groupTitles: new Map(groups.map((g) => [g.id, g.title])),
     ignoreAge: manual,
   };
@@ -192,7 +210,7 @@ async function sweep({ manual = false } = {}) {
   // Probe everything we might close (saves and drops): catches in-progress forms, grabs text.
   const first = planSweep(visible, options);
   const byId = new Map(visible.map((t) => [t.id, t]));
-  const probes = await mapLimit(first.candidates, 6, (c) => probe(byId.get(c.id), textAllowed(c.url, neverRead)));
+  const probes = await mapLimit(first.candidates, 6, (c) => probe(byId.get(c.id), textAllowed(c.url, neverRead) ? state.settings.text_chars : 0));
   const busyIds = new Set(first.candidates.filter((_, k) => probes[k].busy).map((c) => c.id));
   for (const id of await busyAmong(first.drop.map((d) => byId.get(d.id)))) busyIds.add(id);
   const textById = new Map(first.candidates.map((c, k) => [c.id, probes[k].text]));
@@ -242,7 +260,8 @@ async function closePending() {
   const tabs = (await chrome.tabs.query({})).filter((t) => t.url !== DASHBOARD);
   const seen = stored.seen ?? {};
   const { drop } = planSweep(tabs, {
-    now: Date.now(), staleMs: STALE_MS, mode: state.mode, keepOpen: state.settings.keep_open, seen,
+    now: Date.now(), staleMs: state.settings.stale_hours * HOUR_MS, mode: state.mode,
+    keepOpen: state.settings.keep_open, seen,
   });
   const saved = new Map(pending.map((p) => [p.url, p.last_seen_at * 1000]));
   const drops = new Map(drop.map((d) => [d.id, d.url]));
@@ -272,12 +291,13 @@ async function guardMemory() {
   const { lastActive = {} } = await chrome.storage.session.get("lastActive");
   const order = unloadOrder(tabs.filter((t) => t.url !== DASHBOARD), {
     keepOpen: state.settings.keep_open, now: Date.now(), lastActive,
+    minIdleMs: state.settings.unload_idle_hours * HOUR_MS,
   });
   const byId = new Map(tabs.map((t) => [t.id, t]));
   let unloaded = 0;
   for (const id of order) {
     if (unloaded >= UNLOAD_PER_CYCLE) break;
-    const { busy } = await probe(byId.get(id), false);
+    const { busy } = await probe(byId.get(id), 0);
     if (busy) continue;
     await chrome.tabs.discard(id).catch(() => null);
     unloaded++;
@@ -309,7 +329,8 @@ async function rebuildMenus() {
 async function addPage(tab, { theme = null, close = false } = {}) {
   if (!tab || !/^https?:/.test(tab.url)) throw new Error("only web pages can be added");
   const state = await api("GET", "/api/state");
-  const { text } = textAllowed(tab.url, state.settings.never_read) ? await probe(tab, true) : { text: null };
+  const { text } = textAllowed(tab.url, state.settings.never_read)
+    ? await probe(tab, state.settings.text_chars) : { text: null };
   await api("POST", "/api/tabs/add", { url: tab.url, title: tab.title, theme, text });
   if (close) await chrome.tabs.remove(tab.id);
   return { title: tab.title, theme, closed: close };
@@ -372,6 +393,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     sweepNow: () => sweep({ manual: true }),
     previewSweep,
     themesChanged: rebuildMenus,
+    settingsChanged: scheduleAlarms,
     closePending,
     checkMemory: guardMemory,
     tidyWindows,

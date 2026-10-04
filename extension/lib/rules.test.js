@@ -228,9 +228,11 @@ test("memory checks are debounced to once per 30s", () => {
 
 test("next sweep is today 19:00 local if not passed, else tomorrow", () => {
   const morning = new Date(2026, 8, 30, 9, 0).getTime();
-  assert.equal(nextSweepAt(morning, 19), new Date(2026, 8, 30, 19, 0).getTime());
+  assert.equal(nextSweepAt(morning, "19:00"), new Date(2026, 8, 30, 19, 0).getTime());
   const evening = new Date(2026, 8, 30, 19, 30).getTime();
-  assert.equal(nextSweepAt(evening, 19), new Date(2026, 9, 1, 19, 0).getTime());
+  assert.equal(nextSweepAt(evening, "19:00"), new Date(2026, 9, 1, 19, 0).getTime());
+  assert.equal(nextSweepAt(morning, "07:30"), new Date(2026, 9, 1, 7, 30).getTime());
+  assert.equal(nextSweepAt(morning, "09:45"), new Date(2026, 8, 30, 9, 45).getTime());
 });
 
 test("a sweep is due on startup if none ran in the last 24h", () => {

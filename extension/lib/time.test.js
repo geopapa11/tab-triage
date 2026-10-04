@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "./time.js";
+import { snoozePresets, ago, dayLabel, localISODate, fileStamp, parseTime } from "./time.js";
 
 const at = (y, mo, d, h = 0, mi = 0) => new Date(y, mo - 1, d, h, mi).getTime();
 
@@ -42,4 +42,19 @@ test("local dates and file stamps use the local day, not UTC", () => {
   const lateEvening = new Date(2026, 9, 2, 23, 30).getTime(); // already Oct 3 in UTC west of Greenwich
   assert.equal(localISODate(lateEvening), "2026-10-02");
   assert.equal(fileStamp(lateEvening), "2026-10-02-2330");
+});
+
+test("times are parsed from HH:MM, falling back when malformed", () => {
+  assert.deepEqual(parseTime("19:30"), { hour: 19, minute: 30 });
+  assert.deepEqual(parseTime("07:05"), { hour: 7, minute: 5 });
+  assert.deepEqual(parseTime("nonsense", "08:00"), { hour: 8, minute: 0 });
+  assert.deepEqual(parseTime(undefined, "19:00"), { hour: 19, minute: 0 });
+});
+
+test("snooze presets wake at the configured time", () => {
+  const wed = at(2026, 9, 30, 15, 20);
+  const p = snoozePresets(wed, "09:15");
+  assert.equal(p.tomorrow, at(2026, 10, 1, 9, 15));
+  assert.equal(p.nextMonday, at(2026, 10, 5, 9, 15));
+  assert.equal(p.week, at(2026, 10, 7, 9, 15));
 });

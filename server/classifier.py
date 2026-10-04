@@ -157,7 +157,7 @@ class ClaudeRunner:
         return output, model_used
 
 
-def build_prompt(tabs, active, corrections):
+def build_prompt(tabs, active, corrections, text_limit=TEXT_LIMIT, min_tabs=2):
     """active: {theme name: [sample tab titles]}"""
     lines = [
         "You sort someone's saved browser tabs into themes. A theme is a task or project, "
@@ -165,7 +165,7 @@ def build_prompt(tabs, active, corrections):
         "",
         "Rules:",
         "- Reuse an existing theme whenever one fits. Use its exact name.",
-        "- Only invent a new theme when at least 2 tabs in this batch belong to it.",
+        f"- Only invent a new theme when at least {min_tabs} tab(s) in this batch belong to it.",
         f"- A tab that fits nowhere goes to \"{UNSORTED}\".",
         "- Theme names are short (2-5 words) and describe the task, not the website.",
         "- A tab's \"group\" is a Chrome tab-group name the person chose; treat it as a strong hint.",
@@ -195,12 +195,15 @@ def build_prompt(tabs, active, corrections):
         if t.get("group_hint"):
             entry["group"] = t["group_hint"]
         if t.get("text"):
-            entry["text"] = t["text"][:TEXT_LIMIT]
+            entry["text"] = t["text"][:text_limit]
         lines.append(json.dumps(entry, ensure_ascii=False))
     return "\n".join(lines)
 
 
-def apply_rules(tabs, output, active, max_themes=MAX_THEMES):
+MIN_TABS_NEW_THEME = 2
+
+
+def apply_rules(tabs, output, active, max_themes=MAX_THEMES, min_tabs=MIN_TABS_NEW_THEME):
     """Map every tab id to a final theme name, enforcing the theme rules."""
     ids = [t["id"] for t in tabs]
     canon = {name.lower(): name for name in active}
@@ -223,7 +226,7 @@ def apply_rules(tabs, output, active, max_themes=MAX_THEMES):
     slots = max_themes - len([n for n in active if n not in SPECIAL_THEMES])
     allowed = set()
     for key, count in new_counts.most_common():
-        if count >= 2 and slots > 0:
+        if count >= min_tabs and slots > 0:
             allowed.add(key)
             slots -= 1
 
@@ -243,7 +246,7 @@ def _active_with_samples(store):
     }
 
 
-def sort_pending(store, runner, include_unsorted=False, batch_size=BATCH_SIZE):
+def sort_pending(store, runner, include_unsorted=False):
     tabs = store.pending_sort()
     if include_unsorted:
         tabs += store.tabs_in_theme(UNSORTED)
@@ -251,11 +254,15 @@ def sort_pending(store, runner, include_unsorted=False, batch_size=BATCH_SIZE):
         return
     model = store.get_setting("model", "sonnet")
     max_themes = store.get_setting("max_themes", MAX_THEMES)
+    batch_size = store.get_setting("batch_size", BATCH_SIZE)
+    text_limit = store.get_setting("text_chars", TEXT_LIMIT)
+    min_tabs = store.get_setting("min_tabs_new_theme", MIN_TABS_NEW_THEME)
     fallback = store.get_setting("fallback_model", "haiku")
     batches = [tabs[i:i + batch_size] for i in range(0, len(tabs), batch_size)]
     for n, batch in enumerate(batches):
         active = _active_with_samples(store)
-        prompt = build_prompt(batch, active, store.corrections(limit=20))
+        prompt = build_prompt(batch, active, store.corrections(limit=20), text_limit=text_limit,
+                              min_tabs=min_tabs)
         try:
             output, model_used = runner.run(prompt, OUTPUT_SCHEMA, model, fallback)
         except SortError as e:
@@ -264,7 +271,8 @@ def sort_pending(store, runner, include_unsorted=False, batch_size=BATCH_SIZE):
                     store.assign(t["id"], UNSORTED)
             store.set_setting("sort_error", {"kind": e.kind, "message": str(e), "at": time.time()})
             return
-        for tid, theme in apply_rules(batch, output, list(active), max_themes=max_themes).items():
+        rules = apply_rules(batch, output, list(active), max_themes=max_themes, min_tabs=min_tabs)
+        for tid, theme in rules.items():
             store.assign(tid, theme)
         store.set_setting("last_model", model_used)
         existing = set(store.active_theme_names())

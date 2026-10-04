@@ -405,7 +405,7 @@ class Store:
         with self._lock, self._db:
             self._db.execute(
                 "DELETE FROM tabs WHERE status = 'done' AND completed_at < ?",
-                (self.now() - DONE_RETENTION,),
+                (self.now() - self.get_setting("done_retention_days", DONE_RETENTION / DAY) * DAY,),
             )
             self._db.execute(
                 "DELETE FROM tabs WHERE status = 'removed' AND removed_at < ?", (self.now() - DAY,)
@@ -427,13 +427,14 @@ class Store:
         return d
 
     def _theme_dict(self, th, tabs):
+        stale_after = self.get_setting("theme_stale_days", STALE_AFTER / DAY) * DAY
         return {
             "id": th["id"],
             "name": th["name"],
             "ranked": th["position"] is not None,
             "position": th["position"],
             "suggested_position": th["suggested_position"],
-            "stale": self.now() - th["touched_at"] >= STALE_AFTER,
+            "stale": self.now() - th["touched_at"] >= stale_after,
             "back": bool(th["back"]),
             "snoozed_until": th["snoozed_until"],
             "later": bool(th["later"]),

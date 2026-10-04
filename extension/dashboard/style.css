@@ -360,6 +360,13 @@ a { color: inherit; }
   border: 1px solid var(--rule); border-radius: 8px; padding: 8px 10px;
 }
 .settings textarea { min-height: 110px; resize: vertical; }
+.settings h3 {
+  font: 600 15px var(--serif); margin: 26px 0 0; padding-top: 16px; border-top: 1px solid var(--rule);
+}
+.settings h2 + h3 { border-top: 0; padding-top: 0; margin-top: 4px; }
+.settings .range { color: var(--muted); font-family: var(--mono); font-size: 11px; white-space: nowrap; }
+.settings details.advanced { margin-top: 26px; padding-top: 16px; border-top: 1px solid var(--rule); }
+.settings details.advanced summary { cursor: pointer; font: 600 15px var(--serif); }
 .settings .help { font-size: 12px; color: var(--muted); margin: 6px 0 0; }
 .settings .row { display: flex; gap: 8px; margin-top: 22px; }
 

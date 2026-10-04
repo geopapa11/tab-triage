@@ -288,3 +288,33 @@ def test_prompt_tells_ai_not_to_recreate_dissolved_themes():
     corrections = [{"kind": "dissolve", "detail": {"theme": "Bad grouping"}}]
     p = build_prompt(TABS, active={}, corrections=corrections)
     assert 'dissolved theme "Bad grouping"' in p
+
+
+# --- configurable sorting numbers ----------------------------------------------------
+
+def test_batch_size_follows_the_setting(home, runner, store):
+    store.capture([{"url": f"https://x/{i}", "title": f"t{i}"} for i in range(25)])
+    store.set_setting("batch_size", 10)
+    sort_pending(store, runner)
+    assert [p["stdin"].count('"url"') for p in prompt_calls(home)] == [10, 10, 5]
+
+
+def test_page_text_length_follows_the_setting(home, runner, store):
+    store.capture([{"url": "https://x/1", "title": "t", "text": "y" * 3000}])
+    store.set_setting("text_chars", 200)
+    sort_pending(store, runner)
+    stdin = prompt_calls(home)[0]["stdin"]
+    assert "y" * 200 in stdin and "y" * 201 not in stdin
+
+
+def test_new_theme_minimum_follows_the_setting(home, runner, store):
+    ids = store.capture([{"url": f"https://x/{i}", "title": f"t{i}"} for i in range(2)])
+    set_output(home, {"assignments": [{"id": i, "theme": "Pair"} for i in ids]})
+    store.set_setting("min_tabs_new_theme", 3)
+    sort_pending(store, runner)
+    assert open_by_theme(store) == {UNSORTED: ["t0", "t1"]}
+
+
+def test_a_minimum_of_one_lets_a_single_tab_start_a_theme():
+    out = {"assignments": [{"id": 1, "theme": "Solo"}]}
+    assert apply_rules(TABS[:1], out, active=[], min_tabs=1) == {1: "Solo"}

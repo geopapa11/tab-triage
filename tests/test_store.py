@@ -453,3 +453,21 @@ def test_a_removed_page_swept_again_comes_back_open(store):
     store.remove_tabs([a])
     store.capture([cap("https://a")])
     assert open_titles(board_theme(store.board(), "SQL")) == ["https://a"]
+
+
+# --- configurable retention and staleness -------------------------------------------
+
+def test_completed_retention_follows_the_setting(store, clock):
+    (a,) = add_to_theme(store, "SQL", "https://a")
+    store.check(a)
+    store.set_setting("done_retention_days", 10)
+    clock.advance(11)
+    store.purge()
+    assert store.completed() == []
+
+
+def test_theme_staleness_follows_the_setting(store, clock):
+    add_to_theme(store, "SQL", "https://a")
+    store.set_setting("theme_stale_days", 3)
+    clock.advance(3.1)
+    assert board_theme(store.board(), "SQL")["stale"] is True

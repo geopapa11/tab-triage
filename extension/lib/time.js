@@ -1,14 +1,22 @@
 // Date helpers for the dashboard. Inputs from the server are epoch seconds; `now` is ms.
 
-function at8(base, addDays) {
-  const d = new Date(base);
-  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, 8, 0, 0, 0).getTime();
+// "19:30" -> { hour: 19, minute: 30 }. Anything malformed falls back.
+export function parseTime(text, fallback = "00:00") {
+  const m = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(String(text ?? ""));
+  return m ? { hour: Number(m[1]), minute: Number(m[2]) } : parseTime(fallback);
 }
 
-export function snoozePresets(now) {
+// Local midnight of `base` plus `addDays`, at the given "HH:MM".
+export function atTime(base, addDays, time) {
+  const d = new Date(base);
+  const { hour, minute } = parseTime(time);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + addDays, hour, minute, 0, 0).getTime();
+}
+
+export function snoozePresets(now, time = "08:00") {
   const dow = new Date(now).getDay(); // 0 = Sunday, 1 = Monday
   const toMonday = ((8 - dow) % 7) || 7;
-  return { tomorrow: at8(now, 1), nextMonday: at8(now, toMonday), week: at8(now, 7) };
+  return { tomorrow: atTime(now, 1, time), nextMonday: atTime(now, toMonday, time), week: atTime(now, 7, time) };
 }
 
 export function ago(seconds, now) {

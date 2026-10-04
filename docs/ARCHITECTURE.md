@@ -55,6 +55,7 @@ flowchart LR
 | `lib/seen.js`, `lib/api.js` | Small I/O helpers: the "last looked at" record, and the HTTP client. |
 
 The server follows the same idea: `server/store.py` (storage), `server/classifier.py` (sorting),
+`server/settings.py` (every setting's default and accepted range),
 `server/memory.py` (measurement) and `server/app.py` (HTTP routing) are separate, and the server
 is built with its sorter and memory reader passed in, so tests replace them.
 
@@ -165,7 +166,7 @@ switched *to*.
 | `themes` | `name` (unique), `position` (rank; null = unranked), `suggested_position`, `touched_at` (for the stale badge), `snoozed_until`, `later`, `back` |
 | `tabs` | `url` (unique), `title`, `theme_id` (null = waiting to be sorted), `position`, `status` (`open` / `done` / `removed`), `captured_at`, `last_seen_at`, `completed_at`, `removed_at`, `snoozed_until`, `pending_close` (saved but still open in Chrome), `text`, `group_hint` |
 | `corrections` | `kind` (`move` / `rename` / `merge` / `dissolve`), `detail` (JSON) |
-| `settings` | `key`, `value` (JSON): model, budgets, keep-open and never-read lists, first-run date, last sort error |
+| `settings` | `key`, `value` (JSON): every user setting (defaults and limits are in `server/settings.py`), plus the first-run date and the last sort error |
 
 Times are Unix seconds. New columns are added in place at startup (`Store._migrate`). Completed
 tabs are deleted after 45 days and removed tabs after 1 day (`Store.purge`, run on every sweep

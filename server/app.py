@@ -14,33 +14,12 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from .classifier import UNSORTED
+from .settings import DEFAULT_SETTINGS, validate
 from .store import DAY
 
 EMAIL_THEME = "Email follow-ups"
 DRY_RUN_DAYS = 7
 
-DEFAULT_SETTINGS = {
-    "model": "sonnet",
-    "fallback_model": "haiku",
-    "tab_memory_cap_mb": 1024,
-    "max_themes": 15,
-    "keep_open": [
-        "https://mail.google.com/mail/u/*/#inbox",
-        "https://calendar.google.com/*",
-        "https://linear.app/*",
-    ],
-    "never_read": [
-        "*://mail.google.com/*",
-        "*://drive.google.com/*",
-        "*://docs.google.com/*",
-        "*://*.aws.amazon.com/*",
-        "*://*.amazonaws.com/*",
-        "*://www.linkedin.com/messaging/*",
-        "*bank*",
-        "*://*.paypal.com/*",
-        "*://*.revolut.com/*",
-    ],
-}
 
 
 def sweep_mode(first_run_done_at, now):
@@ -265,10 +244,11 @@ def make_server(store, sort_fn, memory_fn, port=8765, background=True):
         return {"ok": True}
 
     def patch_settings(body, m):
-        unknown = set(body) - set(DEFAULT_SETTINGS)
-        if unknown:
-            raise BadRequest(f"unknown settings: {sorted(unknown)}")
-        for k, v in body.items():
+        try:
+            checked = {k: validate(k, v) for k, v in body.items()}  # all or nothing
+        except ValueError as e:
+            raise BadRequest(str(e)) from e
+        for k, v in checked.items():
             store.set_setting(k, v)
         return settings()
 

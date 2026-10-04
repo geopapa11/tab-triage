@@ -209,18 +209,36 @@ The server listens on `127.0.0.1` only and refuses requests from web pages.
 
 ## Settings
 
-The ⚙ button on the dashboard:
+The ⚙ button on the dashboard. Each field has a short explanation and its allowed range; values
+outside the range are rejected. The numbers used elsewhere in this README (96 hours, 19:00,
+45 days, and so on) are the defaults.
 
-| Setting | Default | What it does |
-|---|---|---|
-| Sorting model | `sonnet` | A Claude Code model alias, so it follows new versions. Falls back to `haiku` if unavailable. |
-| Tab memory budget | 1024 MB | Above this, the memory guard unloads tabs. |
-| Maximum themes | 15 | Claude stops creating themes at this count. Raise it if you have many Chrome tab groups: each becomes a theme and counts. |
-| Keep open | Gmail inbox, Calendar, Linear | URL patterns never closed. One per line; `*` matches anything. |
-| Never read page text | see [Privacy](#privacy-what-is-sent-to-claude) | URL patterns whose page text is never sent. |
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| A tab is stale after | 96 hours | 1–720 | The daily sweep saves tabs untouched for this long. **Sweep now** ignores it. |
+| Daily sweep time | 19:00 | any time | When the automatic sweep runs. |
+| Keep completed tabs for | 45 days | 1–365 | How long ticked tabs stay in Completed. |
+| "Open N" opens at most | 6 tabs | 1–12 | How many of a theme's top tabs open at once. |
+| Snoozed items wake at | 08:00 | any time | Time of day a snoozed tab or theme comes back. |
+| Sorting model | `sonnet` | | A Claude Code model alias, so it follows new versions. Falls back to `haiku` if unavailable. |
+| Maximum themes | 15 | 5–60 | Claude stops creating themes at this count. Raise it if you have many Chrome tab groups: each becomes a theme and counts. |
+| Tab memory budget | 1024 MB | 256 and up | Above this, the memory guard unloads tabs. |
+| Never unload a tab used in the last | 24 hours | 0–168 | Keeps recently used tabs loaded so they don't reload when you return. |
+| Keep open | Gmail inbox, Calendar, Linear | | URL patterns never closed. One per line; `*` matches anything. |
+| Never read page text | see [Privacy](#privacy-what-is-sent-to-claude) | | URL patterns whose page text is never sent. |
 
-Fixed in code: the 96-hour staleness, the 19:00 sweep, the 7-day dry-run and the 45-day
-Completed history.
+Under **Advanced**:
+
+| Setting | Default | Range | What it does |
+|---|---|---|---|
+| Flag a theme as stale after | 7 days | 1–90 | When "Stale — drop it?" appears on an untouched theme. |
+| Check memory every | 5 minutes | 1–60 | How often tab memory is measured (also after each page load). |
+| A new theme needs at least | 2 tabs | 1–10 | Fewer than this go to Unsorted instead of starting a theme. |
+| Page text sent to Claude | 1,500 characters | 0–2,000 | Per tab. 0 sends titles and addresses only. |
+| Tabs per Claude call | 40 | 5–50 | Batch size for sorting. |
+
+Fixed in code: the 7-day dry-run, the 30-second pause between memory checks, two tabs unloaded
+per check, and the 1-day Undo window for removed tabs.
 
 ## Troubleshooting
 

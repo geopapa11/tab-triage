@@ -280,7 +280,7 @@ function themeCard(th, i) {
           <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
           <div class="theme-tools">
             ${th.name === "Unsorted" ? `<button class="tool" data-action="resort" title="Ask Claude to sort these tabs again">Re-sort</button>` : ""}
-            <button class="tool" data-action="open-theme">Open ${Math.min(6, open.length)}</button>
+            <button class="tool" data-action="open-theme">Open ${Math.min(S.state.settings.open_tabs_max, open.length)}</button>
             <button class="tool" data-action="add-link" title="Paste a link to add it to this theme">+ Add link</button>
             <button class="tool" data-action="later" title="Collapse it into the Later list at the bottom">Later</button>
             <button class="tool" data-action="snooze-theme">Snooze</button>
@@ -377,7 +377,7 @@ function renderSnoozed() {
 
 function renderCompleted() {
   if (!S.completed.length) {
-    return `<div class="empty-state"><b>Nothing completed yet</b>Tick a tab when you're done with it. It stays here for 45 days.</div>`;
+    return `<div class="empty-state"><b>Nothing completed yet</b>Tick a tab when you're done with it. It stays here for ${S.state.settings.done_retention_days} days.</div>`;
   }
   const groups = new Map();
   for (const t of S.completed) {
@@ -389,7 +389,7 @@ function renderCompleted() {
     ${[...groups].map(([label, tabs]) => `
       <h3>${esc(label)} · ${tabs.length}</h3>
       <ul class="tabs">${tabs.map((t) => tabRow(t, { theme: t.theme, done: true })).join("")}</ul>`).join("")}
-    <p class="footnote">Completed tabs are deleted 45 days after you tick them. Untick to bring one back.</p>
+    <p class="footnote">Completed tabs are deleted ${S.state.settings.done_retention_days} days after you tick them. Untick to bring one back.</p>
   </div>`;
 }
 
@@ -536,8 +536,9 @@ function popover(anchor, html, onClick) {
 }
 
 function snoozeMenu(anchor, apply) {
-  const p = snoozePresets(Date.now());
-  const fmt = (ms) => `${dayLabel(ms / 1000, Date.now())} 08:00`;
+  const wake = S.state.settings.snooze_time;
+  const p = snoozePresets(Date.now(), wake);
+  const fmt = (ms) => `${dayLabel(ms / 1000, Date.now())} ${wake}`;
   const tomorrow = localISODate(Date.now() + DAY_S * 1000);
   popover(anchor, `
     <button data-choice="${p.tomorrow}">Tomorrow <span class="hint">${fmt(p.tomorrow)}</span></button>
@@ -548,7 +549,7 @@ function snoozeMenu(anchor, apply) {
     <button data-choice="date">Snooze until that date</button>`,
   (value) => {
     const ms = /^\d{4}-/.test(value)
-      ? new Date(`${value}T08:00:00`).getTime()
+      ? new Date(`${value}T${wake}:00`).getTime()
       : Number(value);
     apply(ms / 1000);
   });
@@ -558,26 +559,64 @@ function themeById(id) {
   return S.board.themes.find((t) => t.id === id);
 }
 
+// One numeric setting: label, input with its limits, and a one-line explanation.
+function numberField(key, label, help, { min, max, step = 1, unit = "" }) {
+  const v = S.state.settings[key];
+  return `
+    <label for="set-${key}">${label}${unit ? ` (${unit})` : ""}</label>
+    <input id="set-${key}" type="number" min="${min}" max="${max}" step="${step}" value="${v}" data-setting="${key}">
+    <p class="help">${help} <span class="range">${min}–${max}.</span></p>`;
+}
+
+function timeField(key, label, help) {
+  return `
+    <label for="set-${key}">${label}</label>
+    <input id="set-${key}" type="time" value="${esc(S.state.settings[key])}" data-setting="${key}">
+    <p class="help">${help}</p>`;
+}
+
 function renderSettings() {
   const s = S.state.settings;
   const models = ["sonnet", "opus", "haiku"];
   $("settings").innerHTML = `
     <h2>Settings</h2>
+
+    <h3>Sweeps</h3>
+    ${numberField("stale_hours", "A tab is stale after", "The daily sweep saves tabs you haven't looked at for this long. Sweep now ignores it.", { min: 1, max: 720, unit: "hours" })}
+    ${timeField("sweep_time", "Daily sweep time", "When the automatic sweep runs each day. If Chrome is closed then, it runs when you next open it.")}
+    ${numberField("done_retention_days", "Keep completed tabs for", "Ticked tabs stay in Completed this long, then are deleted for good.", { min: 1, max: 365, unit: "days" })}
+
+    <h3>Working from the list</h3>
+    ${numberField("open_tabs_max", "“Open N” opens at most", "How many of a theme's top tabs open in a new window.", { min: 1, max: 12, unit: "tabs" })}
+    ${timeField("snooze_time", "Snoozed items wake at", "The time of day a snoozed tab or theme comes back.")}
+
+    <h3>Sorting</h3>
     <label for="set-model">Sorting model</label>
     <select id="set-model">${[...new Set([s.model, ...models])].map((m) => `<option ${m === s.model ? "selected" : ""}>${esc(m)}</option>`).join("")}</select>
     <p class="help">An alias always means the newest version. Falls back to <b>${esc(s.fallback_model)}</b> if unavailable. Runs on your Claude subscription only.</p>
-    <label for="set-cap">Tab memory budget (MB)</label>
-    <input id="set-cap" type="number" min="256" step="128" value="${s.tab_memory_cap_mb}">
-    <p class="help">Above this, least-recently-used tabs are unloaded (not closed), keep-open tabs last.</p>
-    <label for="set-themes">Maximum themes</label>
-    <input id="set-themes" type="number" min="5" max="60" value="${s.max_themes}">
-    <p class="help">New themes stop being created at this count; extra tabs go to Unsorted. Merge themes to make room.</p>
+    ${numberField("max_themes", "Maximum themes", "New themes stop being created at this count; extra tabs go to Unsorted. Merge themes to make room.", { min: 5, max: 60 })}
+
+    <h3>Memory</h3>
+    ${numberField("tab_memory_cap_mb", "Tab memory budget", "Above this, least-recently-used tabs are unloaded (not closed), keep-open tabs last.", { min: 256, max: 65536, step: 128, unit: "MB" })}
+    ${numberField("unload_idle_hours", "Never unload a tab used in the last", "Protects tabs you used recently from being unloaded, so they don't reload when you return. 0 turns the protection off.", { min: 0, max: 168, unit: "hours" })}
+
+    <h3>Which tabs</h3>
     <label for="set-keep">Keep open — never closed</label>
     <textarea id="set-keep">${esc(s.keep_open.join("\n"))}</textarea>
     <p class="help">One URL pattern per line; <code>*</code> matches anything. Pinned tabs are always kept.</p>
     <label for="set-never">Never read page text</label>
     <textarea id="set-never">${esc(s.never_read.join("\n"))}</textarea>
     <p class="help">Only the title and URL of these go to Claude. Sign-in pages are always excluded.</p>
+
+    <details class="advanced">
+      <summary>Advanced</summary>
+      ${numberField("theme_stale_days", "Flag a theme as stale after", "A theme nobody has touched for this long shows “Stale — drop it?”.", { min: 1, max: 90, unit: "days" })}
+      ${numberField("memory_check_minutes", "Check memory every", "How often tab memory is measured. It is also checked after a page finishes loading.", { min: 1, max: 60, unit: "minutes" })}
+      ${numberField("min_tabs_new_theme", "A new theme needs at least", "Claude only creates a theme when this many tabs belong to it; fewer go to Unsorted.", { min: 1, max: 10, unit: "tabs" })}
+      ${numberField("text_chars", "Page text sent to Claude", "Characters of each page's text included when sorting. 0 sends titles and addresses only.", { min: 0, max: 2000, unit: "characters" })}
+      ${numberField("batch_size", "Tabs per Claude call", "Larger batches sort faster but give Claude more to juggle at once.", { min: 5, max: 50, unit: "tabs" })}
+    </details>
+
     <div class="row">
       <button class="btn" data-action="save-settings">Save</button>
       <button class="btn ghost" data-action="toggle-settings">Close</button>
@@ -710,7 +749,7 @@ const actions = {
   },
   "open-theme": async (el) => {
     const th = themeById(themeId(el));
-    const top = th.tabs.filter((t) => t.status === "open").slice(0, 6);
+    const top = th.tabs.filter((t) => t.status === "open").slice(0, S.state.settings.open_tabs_max);
     if (!top.length) return;
     await chrome.windows.create({ url: top.map((t) => t.url), focused: true });
     await markSeen(top.map((t) => t.url));
@@ -720,7 +759,7 @@ const actions = {
   "drop-theme": async (el) => {
     const th = themeById(themeId(el));
     const open = th.tabs.filter((t) => t.status === "open");
-    if (!confirm(`Mark all ${open.length} tabs in “${th.name}” as done? They stay in Completed for 45 days.`)) return;
+    if (!confirm(`Mark all ${open.length} tabs in “${th.name}” as done? They stay in Completed for ${S.state.settings.done_retention_days} days.`)) return;
     await act(async () => {
       for (const t of open) await api("POST", `/api/tabs/${t.id}/check`, {});
     });
@@ -761,7 +800,7 @@ const actions = {
       <button data-choice="move:down">Move down</button>
       <hr>`}
       <button data-choice="rename">Rename</button>
-      <button data-choice="done">Mark all done <span class="hint">kept 45 days</span></button>
+      <button data-choice="done">Mark all done <span class="hint">kept ${S.state.settings.done_retention_days} days</span></button>
       <button data-choice="dissolve">Dissolve <span class="hint">re-sort its tabs</span></button>
       <button data-choice="merge">Merge into… <span class="hint">pick a theme</span></button>
       ${th.name === "Unsorted" ? "" : `<button data-choice="remove" class="danger">Remove theme <span class="hint">all its tabs, with undo</span></button>`}`,
@@ -775,7 +814,7 @@ const actions = {
       } else if (choice === "rename") actions.rename(el.closest(".theme").querySelector(".theme-name"));
       else if (choice === "done") {
         act(() => api("POST", `/api/themes/${id}/done`, {}));
-        toast(`Marked ${open} tabs done. Untick any of them in Completed within 45 days.`);
+        toast(`Marked ${open} tabs done. Untick any of them in Completed within ${S.state.settings.done_retention_days} days.`);
       } else if (choice === "dissolve") {
         if (!confirm(`Dissolve “${th.name}”? Its ${open} tabs go back to Claude to be sorted again, and Claude won't recreate this theme.`)) return;
         act(() => api("POST", `/api/themes/${id}/dissolve`, {}));
@@ -821,17 +860,26 @@ const actions = {
     if (panel.hidden && S.state) renderSettings();
     panel.hidden = !panel.hidden;
   },
-  "save-settings": () => act(async () => {
-    await api("PATCH", "/api/settings", {
-      model: $("set-model").value,
-      tab_memory_cap_mb: Number($("set-cap").value) || 1024,
-      max_themes: Number($("set-themes").value) || 15,
-      keep_open: lines("set-keep"),
-      never_read: lines("set-never"),
-    });
+  "save-settings": async () => {
+    const values = { model: $("set-model").value, keep_open: lines("set-keep"), never_read: lines("set-never") };
+    for (const input of $("settings").querySelectorAll("[data-setting]")) {
+      values[input.dataset.setting] = input.type === "number" ? Number(input.value) : input.value;
+    }
+    try {
+      await api("PATCH", "/api/settings", values);
+    } catch (e) {
+      // The server names the field and its limits, e.g. "open_tabs_max must be a whole number from 1 to 12".
+      let why = /"error": "([^"]+)"/.exec(e.message)?.[1] ?? e.message;
+      const label = $("settings").querySelector(`label[for="set-${why.split(" ")[0]}"]`)?.textContent;
+      if (label) why = why.replace(why.split(" ")[0], label.replace(/ \(.*\)$/, "")); // label, not key
+      toast(`Not saved: ${why}`);
+      return;
+    }
+    await chrome.runtime.sendMessage({ type: "settingsChanged" }).catch(() => {}); // re-time the alarms
     $("settings").hidden = true;
     toast("Settings saved.");
-  }, { animate: false }),
+    await refresh();
+  },
 };
 
 const tabId = (el) => Number(el.closest("[data-tab-id]").dataset.tabId);
@@ -918,7 +966,7 @@ document.addEventListener("click", (e) => {
   if (kind === "clear") clearSelection();
   else if (kind === "check") {
     bulk("check");
-    toast(`Marked ${n} tabs done. They stay in Completed for 45 days.`);
+    toast(`Marked ${n} tabs done. They stay in Completed for ${S.state.settings.done_retention_days} days.`);
   } else if (kind === "snooze") snoozeMenu(b, (until) => bulk("snooze", { until }));
   else if (kind === "remove") {
     const ids = [...S.selected];

@@ -1,6 +1,8 @@
 // Pure decision logic for the sweep and memory guard. No chrome.* here — tested with `node --test`.
 // Times are epoch milliseconds (Chrome's convention); the server gets seconds.
 
+import { atTime } from "./time.js";
+
 const DAY = 24 * 3600_000;
 const HTTP = /^https?:\/\//i;
 // A sign-in page has one of these as its first path segment (/login, /sso/start), or ends in a
@@ -148,11 +150,10 @@ export function memoryCheckDue(lastCheckAt, now, gapMs = 30_000) {
   return lastCheckAt == null || now - lastCheckAt >= gapMs;
 }
 
-export function nextSweepAt(now, hour) {
-  const d = new Date(now);
-  const at = new Date(d.getFullYear(), d.getMonth(), d.getDate(), hour, 0, 0, 0);
-  if (at.getTime() <= now) at.setDate(at.getDate() + 1);
-  return at.getTime();
+// The next daily sweep: today at `time` ("HH:MM", local) if that is still ahead, else tomorrow.
+export function nextSweepAt(now, time) {
+  const today = atTime(now, 0, time);
+  return today > now ? today : atTime(now, 1, time);
 }
 
 export function sweepDue(lastSweepAt, now) {

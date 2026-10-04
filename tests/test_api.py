@@ -343,3 +343,35 @@ def test_add_tab_without_theme_lets_claude_sort_it(env):
 
 def test_add_tab_rejects_non_web_urls(env):
     assert call(env, "POST", "/api/tabs/add", {"url": "chrome://settings", "title": "x"})[0] == 400
+
+
+# --- configurable numbers ------------------------------------------------------------
+
+@pytest.mark.parametrize("key, good, bad", [
+    ("done_retention_days", 30, 0),
+    ("stale_hours", 48, 0),
+    ("theme_stale_days", 14, 0),
+    ("unload_idle_hours", 12, 200),
+    ("memory_check_minutes", 10, 0),
+    ("open_tabs_max", 12, 13),
+    ("min_tabs_new_theme", 3, 0),
+    ("text_chars", 2000, 2001),
+    ("batch_size", 50, 51),
+    ("sweep_time", "07:30", "25:00"),
+    ("snooze_time", "09:15", "9am"),
+])
+def test_settings_are_validated_against_their_limits(env, key, good, bad):
+    assert call(env, "PATCH", "/api/settings", {key: good})[1][key] == good
+    assert call(env, "PATCH", "/api/settings", {key: bad})[0] == 400
+    assert call(env, "GET", "/api/state")[1]["settings"][key] == good
+
+
+def test_defaults_match_the_original_fixed_values(env):
+    s = call(env, "GET", "/api/state")[1]["settings"]
+    assert {k: s[k] for k in ("done_retention_days", "stale_hours", "theme_stale_days", "unload_idle_hours",
+                              "memory_check_minutes", "open_tabs_max", "min_tabs_new_theme", "text_chars",
+                              "batch_size", "sweep_time", "snooze_time")} == {
+        "done_retention_days": 45, "stale_hours": 96, "theme_stale_days": 7, "unload_idle_hours": 24,
+        "memory_check_minutes": 5, "open_tabs_max": 6, "min_tabs_new_theme": 2, "text_chars": 1500,
+        "batch_size": 40, "sweep_time": "19:00", "snooze_time": "08:00",
+    }
