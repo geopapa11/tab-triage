@@ -32,7 +32,7 @@ Read it from the top:
 1. The **background worker** is the only part that touches your tabs. It notices which ones you
    haven't used, reads them, and later closes or unloads them.
 2. It hands the tabs it sweeps to the **local server**, which saves them in the **database**.
-3. The server asks the **Claude Code CLI** to sort the new tabs into themes and saves the answer.
+3. The **local server** asks the **Claude Code CLI** to sort the new tabs into themes and saves the answer.
 4. The **dashboard** shows the list by asking the server, and sends the server every change you
    make. When a change needs Chrome (closing tabs, merging windows), it asks the worker.
 
