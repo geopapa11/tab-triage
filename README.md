@@ -16,8 +16,10 @@ depend on tabs staying open, and far less memory use.
 
 *The dashboard, shown with demo data.*
 
-Sorting is done by Claude through the Claude Code CLI on your **claude.ai subscription**. No API
-key is used, ever.
+Sorting is done by Claude, through the Claude Code CLI. By design it runs **only on a claude.ai
+subscription**. An Anthropic API key is never used: if the CLI isn't logged in with a
+subscription, or reports an API key, the sorting call is refused instead of being billed to a key
+(see [Privacy](#privacy-what-is-sent-to-claude)).
 
 - [What you need](#what-you-need)
 - [Install](#install)
@@ -101,11 +103,11 @@ You don't start anything.
 
 | | |
 |---|---|
-| **Every day at 19:00** | Tabs untouched for 96 hours are saved, sorted and (after the dry-run week) closed. Both the time and the 96 hours are [settings](#settings). The time is your Mac's local time, and follows you when you change time zone. |
+| **Every day at 19:00** | The daily sweep runs. It saves and sorts every tab you haven't used for 96 hours; once the dry-run week is over, it also closes them. 19:00 and 96 hours are the defaults, and you can change both in [Settings](#settings). The time is your Mac's local time, and follows you when you change time zone. |
 | **Laptop asleep at 19:00** | The sweep runs when it wakes. |
 | **Chrome closed or laptop off at 19:00** | The sweep runs when you next open Chrome, if none ran in the last 24 hours. |
-| **After a restart** | The server starts at login; the extension loads with Chrome. |
-| **Any time** | **Sweep now** sweeps immediately and **ignores the 96 hours**: every tab that isn't protected is saved (and, after the dry-run week, closed). It shows a count and asks first. |
+| **After a restart** | Nothing to do. A sweep needs both parts running, and both start by themselves: the server when you log in to your Mac, the extension when Chrome opens. If the server is down, the dashboard says "Can't reach the local server" and no tab is closed. |
+| **Any time** | **Sweep now** runs a sweep immediately and **ignores how recently you used a tab** (the *A tab is stale after* setting): every tab that isn't protected is saved and, once the dry-run week is over, closed. It shows a count and asks first. |
 
 The sweep only runs while Chrome is open.
 
@@ -117,19 +119,32 @@ are never swept.
 **The header** shows the mode (First run / Dry-run / Live), tab memory against its budget, how
 many tabs are loaded, and how many windows are open.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
+  <img src="docs/images/header-light.png" width="760"
+       alt="The dashboard header: Mode Live, Tab memory 0.74 GB of a 2 GB budget, Live tabs 5 of 12, Windows 2 of 2, with the Sweep now, Merge windows, Export .md and Settings buttons.">
+</picture>
+
 The dashboard has four views: **Themes** (your list, in priority order, with unranked themes
-below and Later ones at the bottom), **Open tabs** (every tab open in Chrome right now),
-**Snoozed** and **Completed**.
+below and Later ones at the bottom), **Open tabs** (every web page open in Chrome right now,
+except the dashboard itself and Chrome's own pages such as `chrome://extensions`), **Snoozed**
+and **Completed**.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
+  <img src="docs/images/views-light.png" width="376"
+       alt="The view switcher: Themes, Open tabs, Snoozed and Completed, each with a count.">
+</picture>
 
 | To do this | Do this |
 |---|---|
-| Open a saved tab | Click its title. |
+| Open a saved tab | Click its title. Nothing else on the row opens it: the checkbox selects, and the rest of the row is for dragging. |
 | Work on a theme | **Open N** opens its top tabs (6 by default) in a new window. |
-| Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
+| Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to **Completed**, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
 | Add a tab that's open in Chrome | **Open tabs** view → **Add & close** or **Add, keep open** on its row → pick a theme, **Let Claude choose**, **On its own** (Unsorted) or **New theme…**. The row shows if the page is already saved. |
-| Add the tab you're on, without the dashboard | Right-click **inside the page** → **Add this tab to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
-| Add a tab from a link | **+ Add tab** on a theme card, paste the link, press Enter. The title is filled in. |
-| Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days (by default), then is deleted. **Restore** brings it back. |
+| Add the tab you're on, without the dashboard | Right-click **inside the page** → **Add this tab to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab bar at the top of the window. |
+| Add a tab from a link | **+ Add tab**, at the top of a theme card or under its last tab. Paste the link and press Enter. The title is filled in. |
+| Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 60 days (by default), then is deleted for good. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
 | Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar appears just above the topmost selected tab with **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
@@ -143,11 +158,12 @@ below and Later ones at the bottom), **Open tabs** (every tab open in Chrome rig
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
-A theme nobody has touched for 7 days (by default) shows **Stale — drop it?**; clicking it marks all its tabs
-done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
+A theme you haven't touched for 14 days (by default) shows **Stale — drop it?**. Touching a theme
+means adding, opening, completing or snoozing one of its tabs. The label is only a suggestion:
+nothing changes unless you click it, and clicking it marks all the theme's tabs done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
 
-**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed (45 days by default)
+**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed (60 days by default)
 as a record. Remove it when it turned out not to be useful; it leaves no history.
 
 Your corrections (moving a tab to another theme, renaming, merging, dissolving) are passed to
@@ -190,9 +206,10 @@ Settings.
 ## Memory guard
 
 Every 5 minutes (by default), and after a page finishes loading, the extension checks how much memory Chrome's
-tabs use. Above the **tab memory budget** (1 GB by default) it *unloads* the two least recently
-used tabs, and repeats until it is under. Unloaded tabs stay in the tab strip and reload when you
-click them. The tab you're on, any tab you used in the last 24 hours (by default), tabs playing audio
+tabs use. Above the **tab memory budget** (2 GB by default) it *unloads* the two least recently
+used tabs, and repeats until it is under. An unloaded tab is not closed: it stays where it was in
+Chrome's tab bar (the row of tabs at the top of the window), with its title and icon, but Chrome
+stops keeping the page in memory. Clicking the tab loads the page again. The tab you're on, any tab you used in the last 24 hours (by default), tabs playing audio
 and tabs with half-filled forms are never unloaded; keep-open and pinned tabs go last.
 
 The header also shows Chrome's total. That figure includes Chrome itself, the GPU process and
@@ -210,7 +227,8 @@ thing that leaves your machine is the sorting request to Claude, through the `cl
 
 Page text is **never read** on the never-read list (Gmail, Google Drive and Docs, AWS, LinkedIn
 messaging, PayPal, Revolut, anything with "bank" in the address, by default) or on sign-in
-pages. For those, only the title and URL are sent.
+pages. For those, only the title and URL are sent. You can add to or shorten the list under
+**Never read page text** in [Settings](#settings).
 
 **Subscription only.** Before each sorting call the server checks that `claude` is logged in with
 claude.ai, runs it with no `ANTHROPIC_*` environment variables and without your Claude Code
@@ -221,21 +239,21 @@ The server listens on `127.0.0.1` only and refuses requests from web pages.
 
 ## Settings
 
-The ⚙ button on the dashboard. Each field has a short explanation and its allowed range; a value
+The **Settings** button at the top right of the dashboard. Each field has a short explanation and its allowed range; a value
 outside the range is flagged under the field and not saved. **Save** keeps the panel open; click
 outside it (or **Close**) to leave, and it asks first if you have unsaved changes. The numbers used elsewhere in this README (96 hours, 19:00,
-45 days, and so on) are these defaults.
+60 days, and so on) are these defaults.
 
 | Setting | Default | Range | What it does |
 |---|---|---|---|
 | A tab is stale after | 96 hours | 1–720 | The daily sweep saves tabs untouched for this long. **Sweep now** ignores it. |
 | Daily sweep time | 19:00 | any time | When the automatic sweep runs. |
-| Keep completed tabs for | 45 days | 1–365 | How long completed tabs stay in Completed. |
+| Keep completed tabs for | 60 days | 1–365 | How long a tab you marked done stays in Completed. After that it is deleted for good, from the database too. |
 | "Open N" opens at most | 6 tabs | 1–12 | How many of a theme's top tabs open at once. |
 | Snoozed items wake at | 08:00 | any time | Time of day a snoozed tab or theme comes back. |
 | Sorting model | `sonnet` | | A Claude Code model alias, so it follows new versions. Falls back to `haiku` if unavailable. |
 | Maximum themes | 15 | 5–60 | Claude stops creating themes at this count. Raise it if you have many Chrome tab groups: each becomes a theme and counts. |
-| Tab memory budget | 1024 MB | 256 and up | Above this, Chrome frees the memory of tabs you haven't used recently. They stay in the tab strip and reload when clicked; nothing is closed. |
+| Tab memory budget | 2048 MB | 256 and up | Above this, Chrome frees the memory of tabs you haven't used recently. They stay open in Chrome's tab bar and reload when clicked; nothing is closed. |
 | Keep tabs in memory if used in the last | 24 hours | 0–168 | Tabs used more recently than this are never freed from memory, so they don't reload when you return. |
 | Keep open | Gmail inbox, Calendar, Linear | | URL patterns never closed. One per line; `*` matches anything. |
 | Never read page text | see [Privacy](#privacy-what-is-sent-to-claude) | | URL patterns whose page text is never sent. |
@@ -244,14 +262,19 @@ Under **Advanced**:
 
 | Setting | Default | Range | What it does |
 |---|---|---|---|
-| Flag a theme as stale after | 7 days | 1–90 | When "Stale — drop it?" appears on an untouched theme. |
+| Flag a theme as stale after | 14 days | 1–90 | When "Stale — drop it?" appears on a theme you haven't touched. It is only a label: nothing is deleted or changed unless you click it. |
 | Check memory every | 5 minutes | 1–60 | How often tab memory is measured (also after each page load). |
 | A new theme needs at least | 2 tabs | 1–10 | Fewer than this go to Unsorted instead of starting a theme. |
 | Page text sent to Claude | 1,500 characters | 0–2,000 | Per tab. 0 sends titles and addresses only. |
 | Tabs per Claude call | 40 | 5–50 | Batch size for sorting. |
 
-Fixed in code: the 7-day dry-run, the 30-second pause between memory checks, two tabs unloaded
-per check, and the 1-day Undo window for removed tabs.
+Fixed in code:
+
+- the dry-run lasts 7 days
+- memory is checked at most once every 30 seconds. A check also runs each time a page finishes
+  loading, so without this limit opening ten pages at once would run ten checks in a row
+- each check unloads at most two tabs
+- a removed tab can be brought back with Undo for 1 day
 
 ## Troubleshooting
 
@@ -265,7 +288,10 @@ per check, and the 1-day Undo window for removed tabs.
 | Chrome's total memory stays high | Quit and reopen Chrome, and check Chrome's Task Manager (⋮ → More tools) for heavy tabs and extensions. |
 | Tab Triage disappeared from Chrome | Developer mode was turned off. Turn it on and load the `extension/` folder again; your saved tabs are still in the database. |
 
-To see what the extension is doing, click **service worker** on its card in `chrome://extensions`.
+If the extension itself seems to misbehave (a sweep didn't run, tabs weren't closed), look at its
+error log: open `chrome://extensions`, find the Tab Triage card, and click the blue **service
+worker** link next to "Inspect views". Chrome's developer tools open; the **Console** tab lists
+any error from the extension, marked `[tab-triage]`. An empty console means no errors.
 
 ## Updating and uninstalling
 
@@ -290,8 +316,9 @@ saved tabs stay in `~/Library/Application Support/tab-triage/`; delete that fold
   SQLite. It stores everything, runs `claude -p` to sort, and measures Chrome's memory. About
   15 MB of RAM.
 
-How the parts work together, the data model and the API are described in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). Design decisions and how each part was verified are
+How the parts work together and the API are described in
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the database tables and columns are in
+[docs/DATABASE.md](docs/DATABASE.md). Design decisions and how each part was verified are
 in [docs/PLAN.md](docs/PLAN.md).
 
 **Tests:**

@@ -3,8 +3,7 @@
     PYTHONPATH=. uv run python scripts/demo/seed.py /tmp/demo.db
     uv run python -m server --port 8799 --db /tmp/demo.db &
     uv run python scripts/demo/harness.py &
-    # then capture http://127.0.0.1:8791/dashboard/index.html?light=1 and ...?dark=1
-    # (window 1180x1140, device scale factor 2) into docs/images/.
+    # then run scripts/demo/capture_dashboard.mjs (see its header) to write docs/images/.
 
 It stubs chrome.*, draws letter favicons, returns fixed memory numbers and forces the color scheme.
 """
@@ -26,7 +25,7 @@ window.chrome = {
   runtime: { sendMessage: async () => ({ ok: true, result: {} }) },
 };
 </script>"""
-MEMORY = {"chrome_bytes": int(1.62 * 1024**3), "tabs_bytes": int(0.74 * 1024**3), "tab_cap_bytes": 1024**3, "over": False}
+MEMORY = {"chrome_bytes": int(1.62 * 1024**3), "tabs_bytes": int(0.74 * 1024**3), "tab_cap_bytes": 2 * 1024**3, "over": False}
 PALETTE = ["#2f6b4f", "#c2410c", "#1f5fa8", "#7a4fb3", "#b7791f", "#0f766e", "#9d2f5b", "#4a463f"]
 class H(http.server.BaseHTTPRequestHandler):
     def log_message(self, *a): pass
