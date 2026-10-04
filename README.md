@@ -8,16 +8,13 @@ from the dashboard: prioritize themes, open the tabs for one task, mark them don
 The result is a couple of Chrome windows with a handful of live tabs, a task list that doesn't
 depend on tabs staying open, and far less memory use.
 
-<a href="docs/images/dashboard-light.png?raw=true">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
-    <img src="docs/images/dashboard-light.png" width="900"
-         alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with a checkbox to select and a Done button.">
-  </picture>
-</a>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
+  <img src="docs/images/dashboard-light.png" width="900"
+       alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with a checkbox to select and a Done button.">
+</picture>
 
-*The dashboard, shown with demo data. Click any picture in this README to see it alone at full
-size; your browser's Back button returns here.*
+*The dashboard, shown with demo data.*
 
 Sorting is done by Claude, through the Claude Code CLI. By design it runs **only on a claude.ai
 subscription**. An Anthropic API key is never used: if the CLI isn't logged in with a
@@ -72,16 +69,14 @@ subscription, or reports an API key, the sorting call is refused instead of bein
       of the address bar and click the pin next to **Tab Triage**. (If **Pin new extensions to
       Toolbar** is switched on, further down the same page, the icon appears by itself.)
 
-      <a href="docs/images/install-pin.png?raw=true"><img src="docs/images/install-pin.png" width="286"
-           alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right."></a>
+      <img src="docs/images/install-pin.png" width="286"
+           alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right.">
 
-   <a href="docs/images/install-extensions-light.png?raw=true">
-     <picture>
-       <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
-       <img src="docs/images/install-extensions-light.png" width="800"
-            alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
-     </picture>
-   </a>
+   <picture>
+     <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
+     <img src="docs/images/install-extensions-light.png" width="800"
+          alt="Chrome's Extensions page with the Developer mode switch at the top right marked 1 and the Load unpacked button at the top left marked 2.">
+   </picture>
 
 3. Click the Tab Triage icon. The dashboard opens.
 
@@ -127,13 +122,11 @@ are never swept.
 **The header** shows the mode (First run / Dry-run / Live), tab memory against its budget, how
 many tabs are loaded, and how many windows are open.
 
-<a href="docs/images/header-light.png?raw=true">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
-    <img src="docs/images/header-light.png" width="760"
-         alt="The dashboard header: Mode Live, Tab memory 0.74 GB of a 2 GB budget, Live tabs 5 of 12, Windows 2 of 2, with the Sweep now, Merge windows, Export .md and Settings buttons.">
-  </picture>
-</a>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/header-dark.png">
+  <img src="docs/images/header-light.png" width="760"
+       alt="The dashboard header: Mode Live, Tab memory 0.74 GB of a 2 GB budget, Live tabs 5 of 12, Windows 2 of 2, with the Sweep now, Merge windows, Export .md and Settings buttons.">
+</picture>
 
 The dashboard has five views: **Themes** (your list, in priority order, with unranked themes
 below and Later ones at the bottom), **Open tabs** (every web page open in Chrome right now,
@@ -141,13 +134,11 @@ except the dashboard itself and Chrome's own pages such as `chrome://extensions`
 **Kept** (every tab you chose to keep, by theme, including themes that have left the list) and
 **Completed**.
 
-<a href="docs/images/views-light.png?raw=true">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
-    <img src="docs/images/views-light.png" width="437"
-         alt="The view switcher: Themes, Open tabs, Snoozed, Kept and Completed, each with a count.">
-  </picture>
-</a>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/views-dark.png">
+  <img src="docs/images/views-light.png" width="437"
+       alt="The view switcher: Themes, Open tabs, Snoozed, Kept and Completed, each with a count.">
+</picture>
 
 ### What you can do
 
