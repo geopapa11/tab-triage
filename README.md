@@ -54,8 +54,8 @@ key is used, ever.
    scripts/install.sh
    ```
 
-   This installs a login job (`local.tab-triage`) that starts the server at every login and
-   restarts it if it stops. It prints `Tab Triage server running on http://127.0.0.1:8765` and
+   This installs a login job (`local.tab-triage`) that starts the server each time you log in to
+   your Mac (after a restart, or after logging out and back in) and restarts it if it stops. It prints `Tab Triage server running on http://127.0.0.1:8765` and
    `claude login ok` when it works.
 
 2. Load the extension in Chrome:
