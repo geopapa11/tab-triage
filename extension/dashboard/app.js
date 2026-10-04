@@ -4,13 +4,14 @@ import { api } from "../lib/api.js";
 import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/time.js";
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
-import { isLoaded } from "../lib/rules.js";
+import { isLoaded, memoryCheckDue } from "../lib/rules.js";
 import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll, barTop } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
 import { numberError, isDirty } from "../lib/settingsform.js";
 
 const DAY_S = 86400;
 const LIVE_TAB_BUDGET = 12;
+const MEMORY_EVERY_MS = 60_000; // measuring memory lists every Chrome process, so not on every refresh
 const SELF = location.href.split("#")[0];
 const $ = (id) => document.getElementById(id);
 
@@ -22,6 +23,7 @@ const S = {
   kept: [],
   pending: 0,
   memory: null,
+  memoryAt: null,
   liveTabs: 0,
   openTabs: [],
   windows: 0,
@@ -61,6 +63,7 @@ const hhmm = (sec) => new Date(sec * 1000).toTimeString().slice(0, 5);
 let pollTimer;
 async function refresh({ animate = false } = {}) {
   const before = animate ? snapshot() : null;
+  const measure = memoryCheckDue(S.memoryAt, Date.now(), MEMORY_EVERY_MS);
   try {
     const [state, board, completed, kept, pending, memory, tabs, local, wins] = await Promise.all([
       api("GET", "/api/state"),
@@ -68,7 +71,7 @@ async function refresh({ animate = false } = {}) {
       api("GET", "/api/completed"),
       api("GET", "/api/kept"),
       api("GET", "/api/pending-close"),
-      api("GET", "/api/memory"),
+      measure ? api("GET", "/api/memory") : S.memory,
       chrome.tabs.query({}),
       chrome.storage.local.get(["lastSweep", "lastError"]),
       chrome.windows.getAll({ windowTypes: ["normal"] }),
@@ -80,6 +83,7 @@ async function refresh({ animate = false } = {}) {
       lastSweep: local.lastSweep ?? null, offline: false,
       windows: wins.filter((w) => !w.incognito).length,
     });
+    if (measure) S.memoryAt = Date.now();
   } catch (e) {
     console.error(e);
     S.offline = true;
@@ -88,7 +92,8 @@ async function refresh({ animate = false } = {}) {
   if (before) flip(before);
   if (!S.offline) chrome.runtime.sendMessage({ type: "themesChanged" }).catch(() => {});
   clearTimeout(pollTimer);
-  pollTimer = setTimeout(refresh, S.state?.sorting ? 2500 : 20000);
+  // No polling while the dashboard is in a background tab; it refreshes when you come back.
+  if (!document.hidden) pollTimer = setTimeout(refresh, S.state?.sorting ? 2500 : 20000);
 }
 
 async function act(fn, { animate = true } = {}) {

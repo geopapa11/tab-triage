@@ -140,7 +140,8 @@ is one API call followed by a full refresh from the server, then a re-render. Th
 fast enough for a few hundred tabs.
 
 - **Reads:** `/api/state`, `/api/board`, `/api/completed`, `/api/kept`, `/api/pending-close`,
-  `/api/memory`, every 20 seconds and when the tab becomes visible.
+  every 20 seconds while the dashboard is the visible tab, and when it becomes visible again.
+  `/api/memory` is read at most once a minute, because measuring lists every Chrome process.
 - **Writes:** tick, snooze, move, rename, merge, reorder, remove, add — all go to the server.
 - **Chrome actions** go to the worker by message: `sweepNow`, `previewSweep`, `closePending`,
   `tidyWindows`, `themesChanged`, `addOpenTab`.
