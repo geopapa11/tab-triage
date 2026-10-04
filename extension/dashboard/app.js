@@ -152,7 +152,7 @@ function renderInstruments() {
       <div class="label"><span>Mode</span></div>
       <div class="value"><span class="pill ${mode.cls}">${esc(mode.label)}</span></div>
     </div>
-    <div class="gauge" title="Memory used by your tabs. Above the budget, Chrome frees the memory of tabs you have not used recently; they stay in the tab strip and reload when clicked. The Chrome total also counts the browser itself, the GPU process and extensions.">
+    <div class="gauge" title="Memory used by your tabs. Above the budget, Chrome frees the memory of tabs you have not used recently; they stay open in Chrome's tab bar and reload when clicked. The Chrome total also counts the browser itself, the GPU process and extensions.">
       <div class="label"><span>Tab memory</span><span>budget ${+(cap / 1024 ** 3).toFixed(2)} GB</span></div>
       <div class="value">${gb(tabsMem)} GB <span class="sub-value">· Chrome total ${gb(total)} GB</span></div>
       <div class="meter ${memCls}"><i style="width:${pct}%"></i></div>
@@ -274,7 +274,7 @@ function themeCard(th, i) {
   const merges = (S.state.merge_suggestions || []).filter((m) => m.from === th.name);
   const badges = [
     th.back ? `<span class="badge back">Back</span>` : "",
-    th.stale ? `<button class="badge stale" data-action="drop-theme" title="Untouched for 7+ days">Stale — drop it?</button>` : "",
+    th.stale ? `<button class="badge stale" data-action="drop-theme" title="Not touched for ${S.state.settings.theme_stale_days} days. Click to mark all its tabs done.">Stale — drop it?</button>` : "",
     !th.ranked && th.suggested_position != null ? `<span class="badge suggest">suggested #${th.suggested_position + 1}</span>` : "",
   ].join("");
   return `
@@ -305,6 +305,7 @@ function themeCard(th, i) {
             <button class="tool" data-action="dismiss-merge">Dismiss</button>
           </div>`).join("")}
         <ul class="tabs" data-theme-name="${esc(th.name)}">${open.map((t) => tabRow(t)).join("")}</ul>
+        <button class="add-row" data-action="add-link" title="Add a tab to this theme by pasting its link."><span></span><b>+</b><span>Add tab</span></button>
         ${done.length ? `
           <button class="done-toggle" data-action="toggle-done" title="Show or hide this theme's completed tabs.">${expanded ? "▾" : "▸"} ${done.length} completed</button>
           ${expanded ? `<ul class="tabs done-list">${done.map((t) => tabRow(t, { done: true })).join("")}</ul>` : ""}` : ""}
@@ -524,7 +525,8 @@ function closePopover() {
   $("popover").innerHTML = "";
 }
 
-function popover(anchor, html, onClick) {
+// Opens under `anchor`, lined up with its right edge (or its left edge with align: "start").
+function popover(anchor, html, onClick, { align = "end" } = {}) {
   const pop = $("popover");
   pop.innerHTML = html;
   pop.hidden = false;
@@ -532,7 +534,7 @@ function popover(anchor, html, onClick) {
   const w = pop.offsetWidth;
   // Never let a tall menu (e.g. 30 "Merge into" rows) push its first items off the top.
   pop.style.top = `${Math.max(10, Math.min(r.bottom + 6, innerHeight - pop.offsetHeight - 10))}px`;
-  pop.style.left = `${Math.max(10, Math.min(r.right - w, innerWidth - w - 10))}px`;
+  pop.style.left = `${Math.max(10, Math.min(align === "start" ? r.left : r.right - w, innerWidth - w - 10))}px`;
   pop.onclick = (e) => {
     const b = e.target.closest("[data-choice]");
     if (!b) return;
@@ -595,7 +597,7 @@ function renderSettings() {
     <h3>Sweeps</h3>
     ${numberField("stale_hours", "A tab is stale after", "The daily sweep saves tabs you haven't looked at for this long. Sweep now ignores it.", { min: 1, max: 720, unit: "hours" })}
     ${timeField("sweep_time", "Daily sweep time", "When the automatic sweep runs each day. If Chrome is closed then, it runs when you next open it.")}
-    ${numberField("done_retention_days", "Keep completed tabs for", "Ticked tabs stay in Completed this long, then are deleted for good.", { min: 1, max: 365, unit: "days" })}
+    ${numberField("done_retention_days", "Keep completed tabs for", "Tabs you mark done stay in Completed this long, then are deleted for good.", { min: 1, max: 365, unit: "days" })}
 
     <h3>Working from the list</h3>
     ${numberField("open_tabs_max", "“Open N” opens at most", "How many of a theme's top tabs open in a new window.", { min: 1, max: 12, unit: "tabs" })}
@@ -608,7 +610,7 @@ function renderSettings() {
     ${numberField("max_themes", "Maximum themes", "New themes stop being created at this count; extra tabs go to Unsorted. Merge themes to make room.", { min: 5, max: 60 })}
 
     <h3>Memory</h3>
-    ${numberField("tab_memory_cap_mb", "Tab memory budget", "Above this, Chrome frees the memory of tabs you haven't used recently. They stay in the tab strip and reload when you click them. Nothing is closed.", { min: 256, max: 65536, step: 128, unit: "MB" })}
+    ${numberField("tab_memory_cap_mb", "Tab memory budget", "Above this, Chrome frees the memory of tabs you haven't used recently. They stay open in Chrome's tab bar and reload when you click them. Nothing is closed.", { min: 256, max: 65536, step: 128, unit: "MB" })}
     ${numberField("unload_idle_hours", "Keep tabs in memory if used in the last", "Tabs used more recently than this are never freed from memory, so they don't reload when you return. 0 turns this off.", { min: 0, max: 168, unit: "hours" })}
 
     <h3>Which tabs</h3>
@@ -621,7 +623,7 @@ function renderSettings() {
 
     <details class="advanced">
       <summary>Advanced</summary>
-      ${numberField("theme_stale_days", "Flag a theme as stale after", "A theme nobody has touched for this long shows “Stale — drop it?”.", { min: 1, max: 90, unit: "days" })}
+      ${numberField("theme_stale_days", "Flag a theme as stale after", "A theme you haven't touched for this long shows “Stale — drop it?”. It is only a label: nothing changes unless you click it.", { min: 1, max: 90, unit: "days" })}
       ${numberField("memory_check_minutes", "Check memory every", "How often tab memory is measured. It is also checked after a page finishes loading.", { min: 1, max: 60, unit: "minutes" })}
       ${numberField("min_tabs_new_theme", "A new theme needs at least", "Claude only creates a theme when this many tabs belong to it; fewer go to Unsorted.", { min: 1, max: 10, unit: "tabs" })}
       ${numberField("text_chars", "Page text sent to Claude", "Characters of each page's text included when sorting. 0 sends titles and addresses only.", { min: 0, max: 2000, unit: "characters" })}
@@ -750,7 +752,8 @@ const actions = {
   },
   "add-link": (el) => {
     const th = themeById(themeId(el));
-    popover(el, `
+    const bottomRow = el.classList.contains("add-row"); // its label sits at the left, so open there
+    popover(bottomRow ? el.lastElementChild : el, `
       <label>Link to the tab <input type="url" placeholder="https://…" style="width:260px"></label>
       <button data-choice="input">Add to “${esc(th.name)}”</button>`,
     async (url) => {
@@ -764,7 +767,7 @@ const actions = {
         await api("POST", "/api/tabs/add", { url, title, theme: th.name });
         toast(`Added “${title}” to ${th.name}.`);
       });
-    });
+    }, { align: bottomRow ? "start" : "end" });
     const input = $("popover").querySelector("input[type=url]");
     input.focus();
     input.addEventListener("keydown", (e) => {
@@ -957,15 +960,12 @@ document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-action]");
   if (el && actions[el.dataset.action]) {
     actions[el.dataset.action](el, e);
-    return;
   }
-  // Clicking a row's empty space selects it too (same as its checkbox).
-  const row = e.target.closest(SELECTABLE);
-  if (row && !e.target.closest("a, button, input")) toggleSelect(Number(row.dataset.tabId), e.shiftKey);
 });
 
-// Selection, Gmail style: a row's checkbox (or its empty space) selects it; shift-click selects
-// every visible row between the last clicked row and this one. Completed rows aren't selectable.
+// One click, one meaning: the checkbox selects, the title opens the tab, and the rest of the row
+// is only a drag handle. Shift-clicking a checkbox selects every visible row between the last
+// clicked one and this one. Completed rows aren't selectable.
 const SELECTABLE = ".tab[data-tab-id]:not(.done)";
 
 function toggleSelect(id, range = false) {
@@ -996,16 +996,17 @@ function syncSelection() {
   }
   renderBulkBar();
 }
-// Shift-clicking rows would otherwise also highlight page text.
-document.addEventListener("mousedown", (e) => {
-  if (e.shiftKey && e.target.closest(".tab[data-tab-id]") && !e.target.closest("a, button, input")) e.preventDefault();
-});
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") {
     if (!$("settings").hidden) return void closeSettings();
     closePopover();
     clearSelection();
   }
+});
+
+// Shift-clicking a checkbox would otherwise also highlight page text.
+document.addEventListener("mousedown", (e) => {
+  if (e.shiftKey && e.target.closest(".check")) e.preventDefault();
 });
 
 // --- multi-select bulk bar --------------------------------------------------------------
