@@ -3,7 +3,6 @@
 - **This page:** how Tab Triage works, for someone reading the code.
 - **How to use it:** the [README](../README.md).
 - **The database tables and columns:** [DATABASE.md](DATABASE.md).
-- **Why it was designed this way:** [PLAN.md](PLAN.md).
 
 ## The three parts
 
