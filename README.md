@@ -69,6 +69,9 @@ subscription, or reports an API key, the sorting call is refused instead of bein
       of the address bar and click the pin next to **Tab Triage**. (With **Pin new extensions to
       Toolbar** switched on, as in the picture, the icon appears by itself.)
 
+      <img src="docs/images/install-pin.png" width="286"
+           alt="The Tab Triage row in Chrome's Extensions menu, with a pin icon to its right.">
+
    <picture>
      <source media="(prefers-color-scheme: dark)" srcset="docs/images/install-extensions-dark.png">
      <img src="docs/images/install-extensions-light.png" width="800"
@@ -160,7 +163,10 @@ and **Completed**.
 
 A theme you haven't touched for 14 days (by default) shows **Stale — drop it?**. Touching a theme
 means adding, opening, completing or snoozing one of its tabs. The label is only a suggestion:
-nothing changes unless you click it, and clicking it marks all the theme's tabs done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
+nothing changes unless you click it. Clicking it asks first, then marks all the theme's tabs done:
+the theme leaves the list and its tabs wait in Completed, where **Restore** brings any of them
+back. To clear the label without dropping the theme, use it: open, add, complete or snooze one of
+its tabs. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
 
 **Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed (60 days by default)
@@ -207,9 +213,10 @@ Settings.
 
 Every 5 minutes (by default), and after a page finishes loading, the extension checks how much memory Chrome's
 tabs use. Above the **tab memory budget** (2 GB by default) it *unloads* the two least recently
-used tabs, and repeats until it is under. An unloaded tab is not closed: it stays where it was in
-Chrome's tab bar (the row of tabs at the top of the window), with its title and icon, but Chrome
-stops keeping the page in memory. Clicking the tab loads the page again. The tab you're on, any tab you used in the last 24 hours (by default), tabs playing audio
+used tabs, and repeats until it is under. An unloaded tab is not closed. It is in the
+state every tab is in right after you restart Chrome: still there in the row of tabs at the top
+of the window, with its title and icon, but the page itself isn't loaded and uses no memory.
+When you click the tab, the page loads again, as it does after a restart. The tab you're on, any tab you used in the last 24 hours (by default), tabs playing audio
 and tabs with half-filled forms are never unloaded; keep-open and pinned tabs go last.
 
 The header also shows Chrome's total. That figure includes Chrome itself, the GPU process and
@@ -271,8 +278,9 @@ Under **Advanced**:
 Fixed in code:
 
 - the dry-run lasts 7 days
-- memory is checked at most once every 30 seconds. A check also runs each time a page finishes
-  loading, so without this limit opening ten pages at once would run ten checks in a row
+- a memory check never runs twice within 30 seconds. A check is started by the timer and also by
+  every page that finishes loading. If you open ten links at once, the first page starts a check
+  and the other nine are skipped, because a check has just run
 - each check unloads at most two tabs
 - a removed tab can be brought back with Undo for 1 day
 
