@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { rangeIds, pickerThemes, filterThemes, openTabRows } from "./select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll } from "./select.js";
 
 const rows = [11, 12, 13, 14, 15];
 
@@ -62,4 +62,18 @@ test("open tabs are listed with where they are already saved, web pages only", (
     { id: 2, url: "https://a.com/x", title: "A", savedIn: null },
     { id: 4, url: "https://b.com", title: "B", savedIn: "Team PRs" },
   ]);
+});
+
+// Theme select-all checkbox, Gmail style.
+test("a theme's checkbox shows whether none, some or all of its tabs are selected", () => {
+  assert.equal(selectionState(new Set(), [1, 2, 3]), "none");
+  assert.equal(selectionState(new Set([2]), [1, 2, 3]), "some");
+  assert.equal(selectionState(new Set([1, 2, 3, 9]), [1, 2, 3]), "all");
+  assert.equal(selectionState(new Set([1]), []), "none");
+});
+
+test("the theme checkbox selects all its tabs, or clears them when all are already selected", () => {
+  assert.deepEqual([...toggleAll(new Set([9]), [1, 2])].sort(), [1, 2, 9]);
+  assert.deepEqual([...toggleAll(new Set([1, 9]), [1, 2])].sort(), [1, 2, 9]);
+  assert.deepEqual([...toggleAll(new Set([1, 2, 9]), [1, 2])], [9]);
 });

@@ -5,7 +5,7 @@ import { snoozePresets, ago, dayLabel, localISODate, fileStamp } from "../lib/ti
 import { dropIndex, rankedOrder, nudgeIndex, edgeScrollSpeed } from "../lib/dnd.js";
 import { markSeen } from "../lib/seen.js";
 import { isLoaded } from "../lib/rules.js";
-import { rangeIds, pickerThemes, filterThemes, openTabRows } from "../lib/select.js";
+import { rangeIds, pickerThemes, filterThemes, openTabRows, selectionState, toggleAll } from "../lib/select.js";
 import { extractTitle } from "../lib/addmenu.js";
 
 const DAY_S = 86400;
@@ -112,7 +112,7 @@ function render() {
   $("main").innerHTML = (views[S.view] || renderThemes)();
   const present = new Set([...document.querySelectorAll("[data-tab-id]")].map((r) => Number(r.dataset.tabId)));
   for (const id of S.selected) if (!present.has(id)) S.selected.delete(id);
-  renderBulkBar();
+  syncSelection();
 }
 
 function renderDateline() {
@@ -241,20 +241,26 @@ function tabRow(t, { theme = null, done = false } = {}) {
   if (t.pending_close) sub.push(`<span class="open-dot">● still open in Chrome</span>`);
   if (t.snoozed_until) sub.push(`wakes ${dayLabel(t.snoozed_until, Date.now())} ${hhmm(t.snoozed_until)}`);
   const remove = `<button class="tool" data-action="remove-tab" title="Not useful after all: take it off the list (no Completed history) and close it in Chrome">Remove</button>`;
-  const tools = t.snoozed_until
-    ? `<button class="tool" data-action="wake-tab">Wake now</button>${remove}`
-    : done ? "" : `<button class="tool" data-action="snooze-tab">Snooze</button>${remove}`;
+  // Hover tools, then the one action that is always visible.
+  const hover = done ? ""
+    : t.snoozed_until ? `<button class="tool" data-action="wake-tab">Wake now</button>${remove}`
+    : `<button class="tool" data-action="snooze-tab">Snooze</button>${remove}`;
+  const primary = done
+    ? `<button class="tool" data-action="uncheck" title="Bring it back to its theme">Restore</button>`
+    : `<button class="tool done-btn" data-action="check" title="Finished with it: keep it in Completed">✓ Done</button>`;
+  const box = done
+    ? `<span class="tick" role="img" aria-label="Completed"></span>`
+    : `<button class="check" data-action="pick" aria-label="Select this tab" title="Select (shift-click for a range)"></button>`;
   return `
     <li class="tab ${t.status} ${t.back ? "back" : ""} ${S.selected.has(t.id) ? "selected" : ""}" data-tab-id="${t.id}" data-url="${esc(t.url)}"
         draggable="${!done && !t.snoozed_until && !theme}">
-      <button class="check" data-action="${t.status === "done" ? "uncheck" : "check"}"
-              aria-label="${t.status === "done" ? "Mark not done" : "Mark done"}"></button>
+      ${box}
       <img src="${favicon(t.url)}" alt="" loading="lazy">
       <div class="title">
         <a href="${esc(t.url)}" data-action="open-tab" title="${esc(t.title)}">${esc(t.title)}</a>
         <div class="sub">${sub.join(" · ")}</div>
       </div>
-      <div class="row-tools">${tools}</div>
+      <div class="row-actions"><span class="row-tools">${hover}</span>${primary}</div>
     </li>`;
 }
 
@@ -275,6 +281,7 @@ function themeCard(th, i) {
       </div>
       <div class="theme-body">
         <div class="theme-head">
+          <button class="check all" data-action="pick-theme" aria-label="Select all tabs in this theme" title="Select all tabs in this theme"></button>
           <h2 class="theme-name" data-action="rename" title="Click to rename">${esc(th.name)}</h2>
           ${badges}
           <span class="theme-meta">${open.length} open${done.length ? ` · ${done.length} done` : ""}</span>
@@ -377,7 +384,7 @@ function renderSnoozed() {
 
 function renderCompleted() {
   if (!S.completed.length) {
-    return `<div class="empty-state"><b>Nothing completed yet</b>Tick a tab when you're done with it. It stays here for ${S.state.settings.done_retention_days} days.</div>`;
+    return `<div class="empty-state"><b>Nothing completed yet</b>Click ✓ Done on a tab when you've finished with it. It stays here for ${S.state.settings.done_retention_days} days.</div>`;
   }
   const groups = new Map();
   for (const t of S.completed) {
@@ -389,7 +396,7 @@ function renderCompleted() {
     ${[...groups].map(([label, tabs]) => `
       <h3>${esc(label)} · ${tabs.length}</h3>
       <ul class="tabs">${tabs.map((t) => tabRow(t, { theme: t.theme, done: true })).join("")}</ul>`).join("")}
-    <p class="footnote">Completed tabs are deleted ${S.state.settings.done_retention_days} days after you tick them. Untick to bring one back.</p>
+    <p class="footnote">Completed tabs are deleted ${S.state.settings.done_retention_days} days after you complete them. Restore brings one back.</p>
   </div>`;
 }
 
@@ -696,6 +703,11 @@ const actions = {
   "wake-tab": (el) => act(() => api("POST", `/api/tabs/${tabId(el)}/snooze`, { until: null })),
   "snooze-theme": (el) => snoozeMenu(el, (until) => act(() => api("POST", `/api/themes/${themeId(el)}/snooze`, { until }))),
   "remove-tab": (el) => removeTabs([tabId(el)]),
+  pick: (el, e) => toggleSelect(tabId(el), e.shiftKey),
+  "pick-theme": (el) => {
+    S.selected = toggleAll(S.selected, themeTabIds(el.closest(".theme")));
+    syncSelection();
+  },
   "focus-tab": async (el, e) => {
     e.preventDefault();
     const id = Number(el.closest("[data-open-id]").dataset.openId);
@@ -899,24 +911,43 @@ document.addEventListener("click", (e) => {
     actions[el.dataset.action](el, e);
     return;
   }
-  // Clicking a tab row's empty space (not its title, tick box or tools) toggles selection;
-  // shift-click selects every visible row between the last clicked row and this one.
-  const row = e.target.closest(".tab[data-tab-id]");
-  if (row && !e.target.closest("a, button, input")) {
-    const id = Number(row.dataset.tabId);
-    if (e.shiftKey) {
-      const visible = [...document.querySelectorAll(".tab[data-tab-id]")].map((r) => Number(r.dataset.tabId));
-      for (const k of rangeIds(visible, S.anchor, id)) S.selected.add(k);
-    } else {
-      S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
-    }
-    S.anchor = id;
-    for (const r of document.querySelectorAll(".tab[data-tab-id]")) {
-      r.classList.toggle("selected", S.selected.has(Number(r.dataset.tabId)));
-    }
-    renderBulkBar();
-  }
+  // Clicking a row's empty space selects it too (same as its checkbox).
+  const row = e.target.closest(SELECTABLE);
+  if (row && !e.target.closest("a, button, input")) toggleSelect(Number(row.dataset.tabId), e.shiftKey);
 });
+
+// Selection, Gmail style: a row's checkbox (or its empty space) selects it; shift-click selects
+// every visible row between the last clicked row and this one. Completed rows aren't selectable.
+const SELECTABLE = ".tab[data-tab-id]:not(.done)";
+
+function toggleSelect(id, range = false) {
+  if (range) {
+    const visible = [...document.querySelectorAll(SELECTABLE)].map((r) => Number(r.dataset.tabId));
+    for (const k of rangeIds(visible, S.anchor, id)) S.selected.add(k);
+  } else {
+    S.selected.has(id) ? S.selected.delete(id) : S.selected.add(id);
+  }
+  S.anchor = id;
+  syncSelection();
+}
+
+const themeTabIds = (card) =>
+  [...card.querySelectorAll(":scope .tabs:not(.done-list) > " + SELECTABLE)].map((r) => Number(r.dataset.tabId));
+
+// Paint the selection onto what is on screen: rows, each theme's select-all box, the bar.
+function syncSelection() {
+  for (const r of document.querySelectorAll(".tab[data-tab-id]")) {
+    r.classList.toggle("selected", S.selected.has(Number(r.dataset.tabId)));
+  }
+  for (const card of document.querySelectorAll(".theme[data-theme-id]")) {
+    const box = card.querySelector(".check.all");
+    if (!box) continue;
+    const state = selectionState(S.selected, themeTabIds(card));
+    box.classList.toggle("some", state === "some");
+    box.classList.toggle("every", state === "all");
+  }
+  renderBulkBar();
+}
 // Shift-clicking rows would otherwise also highlight page text.
 document.addEventListener("mousedown", (e) => {
   if (e.shiftKey && e.target.closest(".tab[data-tab-id]") && !e.target.closest("a, button, input")) e.preventDefault();
@@ -933,8 +964,7 @@ document.addEventListener("keydown", (e) => {
 function clearSelection() {
   S.selected.clear();
   S.anchor = null;
-  for (const r of document.querySelectorAll(".tab.selected")) r.classList.remove("selected");
-  renderBulkBar();
+  syncSelection();
 }
 
 function renderBulkBar() {

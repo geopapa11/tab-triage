@@ -3,7 +3,7 @@
 If you keep dozens of tabs open because each one is a task you don't want to forget, Tab Triage
 takes them off Chrome's hands. Once a day it saves the tabs you haven't touched in 4 days into a
 dashboard, sorts them into themes (one theme per task or project), and closes them. You work
-from the dashboard: prioritize themes, open the tabs for one task, tick them off when done.
+from the dashboard: prioritize themes, open the tabs for one task, mark them done as you finish.
 
 The result is a couple of Chrome windows with a handful of live tabs, a task list that doesn't
 depend on tabs staying open, and far less memory use.
@@ -117,17 +117,17 @@ below and Later ones at the bottom), **Open tabs** (every page open in Chrome ri
 | Add a tab that's open in Chrome | **Open tabs** view → **Add & close** or **Add, keep open** on its row → pick a theme, **Let Claude choose**, **On its own** (Unsorted) or **New theme…**. The row shows if the page is already saved. |
 | Add the page you're on, without the dashboard | Right-click **inside the page** → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
 | Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
-| Mark a tab done | Tick its box. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. Untick it to bring it back. |
+| Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
-| Act on several tabs | Click the empty space in a tab's row to select it; shift-click selects a range. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
+| Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
 | Hide something until a date | **Snooze** a tab or a theme (tomorrow, next Monday, in a week, or a date). It returns marked "Back". |
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |
 | Combine themes | **⋯ → Merge into…**, then pick the theme from the searchable list. |
 | Finish a whole theme | **⋯ → Mark all done**. Reversible for 45 days. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
-| Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already ticked keep their history in Completed. **Undo** in the message brings everything back. |
+| Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already completed keep their history in Completed. **Undo** in the message brings everything back. |
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
@@ -135,7 +135,7 @@ A theme nobody has touched for 7 days shows **Stale — drop it?**; clicking it 
 done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
 
-**Done vs Remove:** tick a tab when you've finished with it; it's kept in Completed for 45 days
+**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed for 45 days
 as a record. Remove it when it turned out not to be useful; it leaves no history.
 
 Your corrections (moving a tab to another theme, renaming, merging, dissolving) are passed to
@@ -217,7 +217,7 @@ outside the range are rejected. The numbers used elsewhere in this README (96 ho
 |---|---|---|---|
 | A tab is stale after | 96 hours | 1–720 | The daily sweep saves tabs untouched for this long. **Sweep now** ignores it. |
 | Daily sweep time | 19:00 | any time | When the automatic sweep runs. |
-| Keep completed tabs for | 45 days | 1–365 | How long ticked tabs stay in Completed. |
+| Keep completed tabs for | 45 days | 1–365 | How long completed tabs stay in Completed. |
 | "Open N" opens at most | 6 tabs | 1–12 | How many of a theme's top tabs open at once. |
 | Snoozed items wake at | 08:00 | any time | Time of day a snoozed tab or theme comes back. |
 | Sorting model | `sonnet` | | A Claude Code model alias, so it follows new versions. Falls back to `haiku` if unavailable. |

@@ -36,3 +36,17 @@ export function openTabRows(chromeTabs, board, dashboardUrl) {
   }
   return rows;
 }
+
+// "none" | "some" | "all": how much of `ids` is in the selection (for a select-all checkbox).
+export function selectionState(selected, ids) {
+  const n = ids.filter((id) => selected.has(id)).length;
+  return n === 0 ? "none" : n === ids.length ? "all" : "some";
+}
+
+// Select-all click: select every id, or clear them if they were all selected already.
+export function toggleAll(selected, ids) {
+  const next = new Set(selected);
+  const all = selectionState(selected, ids) === "all";
+  for (const id of ids) all ? next.delete(id) : next.add(id);
+  return next;
+}
