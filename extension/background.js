@@ -20,7 +20,10 @@ const DASHBOARD = chrome.runtime.getURL("dashboard/index.html");
 
 async function scheduleSettings() {
   const s = await api("GET", "/api/state").then((st) => st.settings, () => FALLBACK);
-  return { sweep_time: s.sweep_time, memory_check_minutes: s.memory_check_minutes };
+  // The time zone is part of the schedule: 19:00 means 19:00 where you are now, so a change of
+  // zone (travelling) has to re-time the sweep alarm.
+  const zone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return { sweep_time: s.sweep_time, memory_check_minutes: s.memory_check_minutes, zone };
 }
 
 // Runs on every service-worker wake, so alarms are only (re)created when missing or when the
