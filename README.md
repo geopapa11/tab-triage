@@ -1,7 +1,7 @@
 # Tab Triage
 
 If you keep dozens of tabs open because each one is a task you don't want to forget, Tab Triage
-takes them off Chrome's hands. Once a day it saves the tabs you haven't touched in 4 days into a
+takes them off Chrome's hands. Once a day it saves the tabs you haven't touched for a while (4 days by default) into a
 dashboard, sorts them into themes (one theme per task or project), and closes them. You work
 from the dashboard: prioritize themes, open the tabs for one task, mark them done as you finish.
 
@@ -91,7 +91,7 @@ You don't start anything.
 
 | | |
 |---|---|
-| **Every day at 19:00** | Tabs untouched for 96 hours are saved, sorted and (after the dry-run week) closed. |
+| **Every day at 19:00** | Tabs untouched for 96 hours are saved, sorted and (after the dry-run week) closed. Both the time and the 96 hours are [settings](#settings). |
 | **Laptop asleep at 19:00** | The sweep runs when it wakes. |
 | **Chrome closed or laptop off at 19:00** | The sweep runs when you next open Chrome, if none ran in the last 24 hours. |
 | **After a restart** | The server starts at login; the extension loads with Chrome. |
@@ -114,12 +114,12 @@ below and Later ones at the bottom), **Open tabs** (every page open in Chrome ri
 | To do this | Do this |
 |---|---|
 | Open a saved tab | Click its title. |
-| Work on a theme | **Open N** opens its top 6 tabs in a new window. |
+| Work on a theme | **Open N** opens its top tabs (6 by default) in a new window. |
 | Remove a tab you no longer need | Hover over it and click **Remove**. It leaves the list without going to Completed, and closes in Chrome if it's open there. **Undo** in the message that appears brings it back. |
 | Add a tab that's open in Chrome | **Open tabs** view → **Add & close** or **Add, keep open** on its row → pick a theme, **Let Claude choose**, **On its own** (Unsorted) or **New theme…**. The row shows if the page is already saved. |
 | Add the page you're on, without the dashboard | Right-click **inside the page** → **Add this page to Tab Triage** → **Add & close** or **Add, keep open** → a theme, **Let Claude choose**, or **On its own (Unsorted)**. It also works by right-clicking the Tab Triage toolbar icon. Chrome doesn't allow extensions in the menu you get by right-clicking a tab in the tab strip. |
 | Add a link | **+ Add link** on a theme card, paste the URL, press Enter. The page's title is filled in. |
-| Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days, then is deleted. **Restore** brings it back. |
+| Mark a tab done | Click **✓ Done** on its row. It greys out, drops to the bottom of the theme and appears under **Completed** for 45 days (by default), then is deleted. **Restore** brings it back. |
 | Prioritize themes | Drag a theme by its number. While you drag, cards collapse to headers and a "Drop here to make it #1" bar appears at the top. Or use **⋯ → Move to top / Move up / Move down**. |
 | Reorder or move tabs | Drag a tab within its theme, onto another theme, or onto a theme in **Later**. **Move to…** in the selection bar lists every theme, including Later and snoozed ones. |
 | Act on several tabs | Tick their checkboxes (shift-click for a range), or tick the box next to a theme's name to select all its tabs. A bar at the top offers **Done**, **Move to…**, **Snooze** and **Remove**. Esc clears. |
@@ -127,17 +127,17 @@ below and Later ones at the bottom), **Open tabs** (every page open in Chrome ri
 | Put a theme aside with no date | **Later** collapses it to one line at the bottom. Click the line to bring it back to its place. |
 | Rename a theme | Click its name. |
 | Combine themes | **⋯ → Merge into…**, then pick the theme from the searchable list. |
-| Finish a whole theme | **⋯ → Mark all done**. Reversible for 45 days. |
+| Finish a whole theme | **⋯ → Mark all done**. Reversible while the tabs are in Completed. |
 | Undo a grouping you don't like | **⋯ → Dissolve**. Its tabs go back to Claude to be re-sorted, and Claude is told not to recreate that theme. |
 | Remove a theme | **Remove** on the theme card, or **⋯ → Remove theme**. All its tabs leave the list (and close in Chrome if open); tabs you had already completed keep their history in Completed. **Undo** in the message brings everything back. |
 | Reduce the number of windows | **Merge windows** brings you down to two windows: the dashboard's window and one other (the one with your inboxes, else the largest) stay as they are, and tabs from every other window move into them. With two or fewer windows it does nothing. Nothing is closed. |
 | Keep a copy | **Export .md** downloads the list as Markdown. |
 
-A theme nobody has touched for 7 days shows **Stale — drop it?**; clicking it marks all its tabs
+A theme nobody has touched for 7 days (by default) shows **Stale — drop it?**; clicking it marks all its tabs
 done. When Claude thinks two themes overlap, the card shows a **Merge** suggestion you can accept
 or dismiss.
 
-**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed for 45 days
+**Done vs Remove:** click ✓ Done when you've finished with a tab; it's kept in Completed (45 days by default)
 as a record. Remove it when it turned out not to be useful; it leaves no history.
 
 Your corrections (moving a tab to another theme, renaming, merging, dissolving) are passed to
@@ -145,7 +145,7 @@ Claude on later sweeps so it stops repeating the same mistake.
 
 ## What gets closed, kept and dropped
 
-A tab is **stale** when you haven't looked at it for 96 hours. The automatic 19:00 sweep only
+A tab is **stale** when you haven't looked at it for 96 hours (the default; it's a setting). The automatic 19:00 sweep only
 takes stale tabs; **Sweep now** and the first run take every tab that isn't protected.
 
 **Never closed:**
@@ -173,16 +173,16 @@ Right before closing anything, the extension re-reads your tabs: a tab that navi
 or was touched since the sweep started stays open.
 
 **Themes:** Claude reuses an existing theme when one fits and creates a new one only when at
-least 2 tabs belong to it. Leftovers go to **Unsorted**, which is always listed last; its **Re-sort**
+least 2 tabs (by default) belong to it. Leftovers go to **Unsorted**, which is always listed last; its **Re-sort**
 button asks Claude to try those tabs again. New themes stop being created at the maximum set in
 Settings.
 
 ## Memory guard
 
-Every 5 minutes, and after a page finishes loading, the extension checks how much memory Chrome's
+Every 5 minutes (by default), and after a page finishes loading, the extension checks how much memory Chrome's
 tabs use. Above the **tab memory budget** (1 GB by default) it *unloads* the two least recently
 used tabs, and repeats until it is under. Unloaded tabs stay in the tab strip and reload when you
-click them. The tab you're on, any tab you used in the last day, tabs playing audio
+click them. The tab you're on, any tab you used in the last 24 hours (by default), tabs playing audio
 and tabs with half-filled forms are never unloaded; keep-open and pinned tabs go last.
 
 The header also shows Chrome's total. That figure includes Chrome itself, the GPU process and
@@ -195,7 +195,7 @@ Everything is stored locally in `~/Library/Application Support/tab-triage/tabs.d
 thing that leaves your machine is the sorting request to Claude, through the `claude` CLI:
 
 - each swept tab's **title**, **URL** and Chrome tab-group name
-- up to **1,500 characters of page text**, only for tabs that are loaded at sweep time
+- up to **1,500 characters of page text** (the default; the limit is a setting, at most 2,000), only for tabs that are loaded at sweep time
 - your existing theme names with a few sample titles, and your recent corrections
 
 Page text is **never read** on the never-read list (Gmail, Google Drive and Docs, AWS, LinkedIn
@@ -214,7 +214,7 @@ The server listens on `127.0.0.1` only and refuses requests from web pages.
 The ⚙ button on the dashboard. Each field has a short explanation and its allowed range; a value
 outside the range is flagged under the field and not saved. **Save** keeps the panel open; click
 outside it (or **Close**) to leave, and it asks first if you have unsaved changes. The numbers used elsewhere in this README (96 hours, 19:00,
-45 days, and so on) are the defaults.
+45 days, and so on) are these defaults.
 
 | Setting | Default | Range | What it does |
 |---|---|---|---|
