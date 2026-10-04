@@ -78,7 +78,8 @@ Nothing closes until you approve.
    groups become themes with the same names.
 2. Look the themes over. Drag tabs between themes, rename or merge themes, and drag the ones that
    matter most into **Your priorities**.
-3. Click **Approve & close**. The saved tabs close, along with duplicates and junk.
+3. Click **Approve & close**. The saved tabs close, along with duplicates and junk. Protected
+   tabs, and any tab you used after the sweep, stay open.
 4. Click **Merge windows** if you're left with several nearly empty windows.
 
 After you approve, a **7-day dry-run** starts: the daily sweep saves stale tabs to the dashboard
