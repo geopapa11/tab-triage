@@ -11,7 +11,7 @@ depend on tabs staying open, and far less memory use.
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/images/dashboard-dark.png">
   <img src="docs/images/dashboard-light.png" width="900"
-       alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with tick boxes.">
+       alt="The Tab Triage dashboard: a header with mode, tab memory, live tabs and windows, then prioritized themes, each listing its saved tabs with a checkbox to select and a Done button.">
 </picture>
 
 *The dashboard, shown with demo data.*
