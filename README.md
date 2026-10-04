@@ -33,6 +33,7 @@ subscription, or reports an API key, the sorting call is refused instead of bein
 - [Troubleshooting](#troubleshooting)
 - [Updating and uninstalling](#updating-and-uninstalling)
 - [How it's built](#how-its-built)
+- [License](#license)
 
 ## What you need
 
@@ -339,8 +340,7 @@ saved tabs stay in `~/Library/Application Support/tab-triage/`; delete that fold
 
 How the parts work together and the API are described in
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md); the database tables and columns are in
-[docs/DATABASE.md](docs/DATABASE.md). Design decisions and how each part was verified are
-in [docs/PLAN.md](docs/PLAN.md).
+[docs/DATABASE.md](docs/DATABASE.md).
 
 **Tests:**
 
@@ -348,3 +348,7 @@ in [docs/PLAN.md](docs/PLAN.md).
 uv run pytest
 node --test 'extension/**/*.test.js'
 ```
+
+## License
+
+MIT. See [LICENSE](LICENSE).
