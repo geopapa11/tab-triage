@@ -130,7 +130,9 @@ function renderDateline() {
   const sweep = S.state?.last_sweep;
   if (sweep) parts.push(`last sweep ${ago(sweep.at, Date.now())}`);
   if (S.state?.last_model) parts.push(`sorted by ${S.state.last_model}`);
-  $("dateline").textContent = parts.join(" · ");
+  // Each part stays on one line, so a narrow header wraps between parts, never inside a
+  // model name like "claude-sonnet-5-5" (browsers may break a line after any hyphen).
+  $("dateline").innerHTML = parts.map((p) => `<span class="part">${esc(p)}</span>`).join(" · ");
 }
 
 function modeInfo() {
